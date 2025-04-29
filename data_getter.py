@@ -7,7 +7,7 @@ from meteostat import Daily, Point
 
 location = Point(12.9716, 77.5946)  # Bangalore
 start = datetime(2014, 1, 1)
-end = datetime(2022,12,31)
+end = datetime(2023,12,31)
 
 data = Daily(location, start, end)
 df = data.fetch()
