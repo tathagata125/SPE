@@ -1,0 +1,14 @@
+stages:
+  get_data:
+    cmd: python data_getter.py
+    deps:
+    - data_getter.py
+    outs:
+    - data/raw_weather.csv
+  clean_data:
+    cmd: python data_cleaner.py
+    deps:
+    - data/raw_weather.csv
+    - data_cleaner.py
+    outs:
+    - data/cleaned_weather.csv
