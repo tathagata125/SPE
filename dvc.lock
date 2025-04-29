@@ -1,0 +1,50 @@
+schema: '2.0'
+stages:
+  get_data:
+    cmd: python data_getter.py
+    deps:
+    - path: data_getter.py
+      hash: md5
+      md5: e5279db1ae285e4858f95a19af9fb079
+      size: 437
+    outs:
+    - path: data/raw_weather.csv
+      hash: md5
+      md5: 8c40fb95b82f4dacff3d69a023ce3458
+      size: 143120
+  clean_data:
+    cmd: python data_cleaner.py
+    deps:
+    - path: data/raw_weather.csv
+      hash: md5
+      md5: 8c40fb95b82f4dacff3d69a023ce3458
+      size: 143120
+    - path: data_cleaner.py
+      hash: md5
+      md5: 948d233286ec521b69883c18502ed842
+      size: 497
+    outs:
+    - path: data/cleaned_weather.csv
+      hash: md5
+      md5: 3d097f1cbafc45e9947fe11a64681488
+      size: 113774
+  train_model:
+    cmd: python train.py
+    deps:
+    - path: data/cleaned_weather.csv
+      hash: md5
+      md5: 3d097f1cbafc45e9947fe11a64681488
+      size: 113774
+    - path: train.py
+      hash: md5
+      md5: 08fdf751a5147cf055891e295745f5d2
+      size: 1220
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 9c03a30cd4b530f3657116fcfb5d8852
+      size: 27
+    - path: model.pkl
+      hash: md5
+      md5: 897e057275eeb9a2ef5fa4dfb8206374
+      size: 19711516

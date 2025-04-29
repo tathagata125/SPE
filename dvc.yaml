@@ -12,3 +12,13 @@ stages:
     - data_cleaner.py
     outs:
     - data/cleaned_weather.csv
+  train_model:
+    cmd: python train.py
+    deps:
+    - data/cleaned_weather.csv
+    - train.py
+    outs:
+    - model.pkl
+    metrics:
+    - metrics.json:
+        cache: false
