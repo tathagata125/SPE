@@ -138,16 +138,16 @@ services:
   backend:
     image: ${LATEST_BACKEND_IMAGE}
     ports:
-      - "8000:8000"
+      - "5001:5000"
     environment:
       - ENV=staging
   
   frontend:
     image: ${LATEST_FRONTEND_IMAGE}
     ports:
-      - "8501:8501"
+      - "8502:8501"
     environment:
-      - BACKEND_URL=http://backend:8000
+      - BACKEND_URL=http://backend:5000
     depends_on:
       - backend
 EOF
@@ -156,11 +156,11 @@ EOF
                     echo "Deployment prepared at /tmp/weather_ops_deployment"
                     
                     # Actually start the containers
-                    cd /tmp/weather_ops_deployment && docker-compose up -d
+                    cd /tmp/weather_ops_deployment && docker-compose down -v && docker-compose up -d
                     
                     echo "Containers have been started!"
-                    echo "Frontend available at: http://localhost:8501"
-                    echo "Backend API available at: http://localhost:8000"
+                    echo "Frontend available at: http://localhost:8502"
+                    echo "Backend API available at: http://localhost:5001"
                 '''
             }
         }
