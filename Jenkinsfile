@@ -168,9 +168,10 @@ EOF
     
     post {
         always {
-            
-                sh 'docker logout'
-                sh 'if [ -d "jenkins_venv" ]; then rm -rf jenkins_venv; fi'
+                node(''){
+                    sh 'docker logout'
+                    sh 'if [ -d "jenkins_venv" ]; then rm -rf jenkins_venv; fi'
+                }
             
         }
         success {
