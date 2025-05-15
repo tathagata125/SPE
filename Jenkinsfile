@@ -2,11 +2,11 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_HUB_CREDS = credentials('DockerHubCred')
-        DOCKER_BACKEND_IMAGE = "girish445g/weather-ops-backend:${BUILD_NUMBER}"
-        DOCKER_FRONTEND_IMAGE = "girish445g/weather-ops-frontend:${BUILD_NUMBER}"
-        LATEST_BACKEND_IMAGE = "girish445g/weather-ops-backend:latest"
-        LATEST_FRONTEND_IMAGE = "girish445g/weather-ops-frontend:latest"
+        DOCKER_HUB_CREDS = credentials('DockerHubCred1')
+        DOCKER_BACKEND_IMAGE = "tathagata125/weather-ops-backend:${BUILD_NUMBER}"
+        DOCKER_FRONTEND_IMAGE = "tathagata125/weather-ops-frontend:${BUILD_NUMBER}"
+        LATEST_BACKEND_IMAGE = "tathagata125/weather-ops-backend:latest"
+        LATEST_FRONTEND_IMAGE = "tathagata125/weather-ops-frontend:latest"
         PYTHON_VERSION = "3.12"
     }
     
