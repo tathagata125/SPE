@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_HUB_CREDS = credentials('dockerhub-credentials')
+        DOCKER_HUB_CREDS = credentials('dockerhub-login')
         DOCKER_BACKEND_IMAGE = "girish445g/weather-ops-backend:${BUILD_NUMBER}"
         DOCKER_FRONTEND_IMAGE = "girish445g/weather-ops-frontend:${BUILD_NUMBER}"
         LATEST_BACKEND_IMAGE = "girish445g/weather-ops-backend:latest"
