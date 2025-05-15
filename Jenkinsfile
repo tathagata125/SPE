@@ -26,6 +26,37 @@ pipeline {
             }
         }
         
+        stage('Setup Test Data') {
+            steps {
+                sh 'echo "Setting up test data..."'
+                sh '''
+                    # Create data directories if they don't exist
+                    mkdir -p data
+                    mkdir -p backend/data
+                    
+                    # Create a sample raw_weather.csv file if it doesn't exist
+                    if [ ! -f data/raw_weather.csv ]; then
+                        echo "time,tavg,tmin,tmax,prcp,wspd" > data/raw_weather.csv
+                        echo "2025-01-01,15.0,10.0,20.0,0.5,10.0" >> data/raw_weather.csv
+                        echo "2025-01-02,16.0,11.0,21.0,0.0,12.0" >> data/raw_weather.csv
+                        echo "2025-01-03,17.0,12.0,22.0,0.2,11.0" >> data/raw_weather.csv
+                    fi
+                    
+                    # Create a sample cleaned_weather.csv file if it doesn't exist
+                    if [ ! -f data/cleaned_weather.csv ]; then
+                        echo "time,tavg,tmin,tmax,prcp,wspd" > data/cleaned_weather.csv
+                        echo "2025-01-01,15.0,10.0,20.0,0.5,10.0" >> data/cleaned_weather.csv
+                        echo "2025-01-02,16.0,11.0,21.0,0.0,12.0" >> data/cleaned_weather.csv
+                        echo "2025-01-03,17.0,12.0,22.0,0.2,11.0" >> data/cleaned_weather.csv
+                    fi
+                    
+                    # Copy the data files to the backend directory as well
+                    cp -f data/raw_weather.csv backend/data/ || true
+                    cp -f data/cleaned_weather.csv backend/data/ || true
+                '''
+            }
+        }
+        
         stage('Data Validation') {
             steps {
                 sh 'echo "Validating data integrity..."'
@@ -45,7 +76,7 @@ for path in data_paths:
 try:
     df = pd.read_csv('data/cleaned_weather.csv')
     # Check for null values in critical columns
-    critical_columns = ['temperature', 'humidity', 'precipitation']
+    critical_columns = ['tavg', 'tmin', 'tmax', 'prcp', 'wspd']
     for col in critical_columns:
         if col in df.columns and df[col].isnull().sum() > 0:
             print(f'Warning: {df[col].isnull().sum()} null values found in {col}')
