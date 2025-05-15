@@ -105,10 +105,13 @@ except Exception as e:
         
         stage('Push to Docker Hub') {
             steps {
+                
                 sh 'echo $DOCKER_HUB_CREDS_PSW | docker login -u $DOCKER_HUB_CREDS_USR --password-stdin'
+                sh '''
                 export DOCKER_CONFIG=$PWD/.docker
                 mkdir -p $DOCKER_CONFIG
                 echo '{ "credsStore": "" }' > $DOCKER_CONFIG/config.json
+                '''
                 
                 // Tag and push backend image with build number
                 sh "docker tag weather_ops_backend ${DOCKER_BACKEND_IMAGE}"
@@ -123,6 +126,7 @@ except Exception as e:
                 sh "docker push ${LATEST_BACKEND_IMAGE}"
                 sh "docker tag weather_ops_frontend ${LATEST_FRONTEND_IMAGE}"
                 sh "docker push ${LATEST_FRONTEND_IMAGE}"
+                
             }
         }
         
