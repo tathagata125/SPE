@@ -168,10 +168,10 @@ EOF
     
     post {
         always {
-            node{
+            
                 sh 'docker logout'
                 sh 'if [ -d "jenkins_venv" ]; then rm -rf jenkins_venv; fi'
-            }
+            
         }
         success {
             echo 'Pipeline completed successfully!'
