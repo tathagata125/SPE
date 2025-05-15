@@ -1,68 +1,66 @@
-# Model files
-/model.pkl
-*.pkl
-*.h5
-*.joblib
-*.onnx
-
-# Python
+# Python cache files
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# Virtual environments
-venv/
-env/
-ENV/
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Data files
+*.csv
+data/
+backend/data/
+
+# Model files
+*.pkl
+model.pkl
+backend/venv
+backend/model.pkl
+frontend/venv
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+docker-volumes/
+
+# Environment variables
 .env
 .venv
+env/
+venv/
+ENV/
 
-# Data files - already tracked by DVC
-*.csv
-*.parquet
-*.tsv
-*.json
-*.jsonl
-*.pickle
+# Completely exclude virtual environment - more comprehensive pattern
+venv/**/*
+**/venv/**/*
 
-# Jupyter Notebooks
-.ipynb_checkpoints
-*/.ipynb_checkpoints/*
-*.ipynb
+# Explicitly ignore all packages in venv directory
+venv/lib/
+venv/bin/
+venv/include/
+venv/share/
+venv/pyvenv.cfg
 
-# Editor files
+# Editor configs
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
 
-# OS specific files
+# OS specific
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# DVC
-/backend/.dvc/tmp
-/backend/.dvc/cache
+# DVC specific
+.dvc/
+/dvc.lock
+/metrics.json
+/plots.json
+
+# Specific large files to exclude
+backend/metrics.json

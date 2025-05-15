@@ -1,0 +1,6 @@
+[core]
+    remote = gdrive_remote
+['remote "gdrive_remote"']
+    url = gdrive://1VdTRjO9N1N5UEIDQ4V6ztT6bwh1NubJB
+    gdrive_use_service_account = true
+    gdrive_service_account_json_file_path = /home/girish/Desktop/carbide-algebra-253703-6d1f97448175.json

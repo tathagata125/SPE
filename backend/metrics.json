@@ -1,1 +1,1 @@
-{"mae": 0.57, "rmse": 0.73}
+{"mae": 0.57, "rmse": 0.73, "feature_count": 19, "training_samples": 2919, "package_versions": {"pandas_version": "2.2.3", "numpy_version": "2.2.5", "sklearn_version": "1.6.1"}}
