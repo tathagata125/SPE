@@ -22,7 +22,7 @@ pipeline {
                 sh 'echo "Setting up Python environment..."'
                 sh 'python${PYTHON_VERSION} -m venv jenkins_venv'
                 sh 'jenkins_venv/bin/pip install -r backend/requirements.txt'
-                sh 'jenkins_venv/bin/pip install pytest pytest-cov'
+                sh 'jenkins_venv/bin/pip install pytest pytest-cov fastapi httpx'
             }
         }
         
