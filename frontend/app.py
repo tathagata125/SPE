@@ -4,6 +4,45 @@ import pickle
 import numpy as np
 import os
 import requests
+import logging
+import json
+from datetime import datetime
+
+# Configure logging
+log_dir = 'logs'
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, f'frontend_{datetime.now().strftime("%Y-%m-%d")}.log')
+
+# Custom JSON formatter for ELK compatibility
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": datetime.utcfromtimestamp(record.created).isoformat(),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "logger": record.name,
+            "path": record.pathname,
+            "function": record.funcName,
+            "line_number": record.lineno,
+            "service": "weather_ops_frontend"
+        }
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_record)
+
+# Set up the logger
+logger = logging.getLogger("weather_ops_frontend")
+logger.setLevel(logging.INFO)
+
+# File handler for JSON logs
+file_handler = logging.FileHandler(log_file)
+file_handler.setFormatter(JsonFormatter())
+logger.addHandler(file_handler)
+
+# Console handler for development
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(console_handler)
 
 # Set page configuration
 st.set_page_config(page_title="Weather Predictor", layout="wide")
@@ -29,6 +68,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+logger.info("Frontend application started")
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:5001")
 
@@ -62,7 +102,8 @@ try:
                     df = pd.read_json(response.content)
                 else:
                     raise Exception(f"Could not load data from API: {response.status_code}")
-            except:
+            except Exception as e:
+                logger.error(f"Error loading data from API: {str(e)}", exc_info=True)
                 raise Exception("Could not find cleaned_weather.csv in any location")
     
     df = df[["tavg", "tmin", "tmax", "prcp", "wspd"]].copy()
@@ -85,11 +126,14 @@ try:
                     model = pickle.loads(response.content)
                 else:
                     raise Exception(f"Could not load model from API: {response.status_code}")
-            except:
+            except Exception as e:
+                logger.error(f"Error loading model from API: {str(e)}", exc_info=True)
                 raise Exception("Could not find model.pkl in any location")
     
     st.success("✅ Data and model loaded successfully")
+    logger.info("Data and model loaded successfully")
 except Exception as e:
+    logger.error(f"Error loading data or model: {str(e)}", exc_info=True)
     st.error(f"❌ Error loading data or model: {str(e)}")
     st.stop()
 
@@ -150,7 +194,9 @@ try:
             'prcp': future_df['prcp'].iloc[-1],
             'wspd': future_df['wspd'].iloc[-1],
         }])], ignore_index=True)
+    logger.info("Predictions generated successfully")
 except Exception as e:
+    logger.error(f"Error generating predictions: {str(e)}", exc_info=True)
     st.error(f"❌ Error generating predictions: {str(e)}")
     st.stop()
 
@@ -203,7 +249,9 @@ if st.sidebar.button("Predict from custom data"):
         st.subheader("📍 Prediction from Manual Input")
         st.markdown(f"<div class='emoji'>{desc}</div>", unsafe_allow_html=True)
         st.markdown(f"<div class='big-font'>Predicted tavg: {pred:.2f} °C</div>", unsafe_allow_html=True)
+        logger.info("Manual prediction generated successfully")
     except Exception as e:
+        logger.error(f"Error generating manual prediction: {str(e)}", exc_info=True)
         st.error(f"❌ Error generating manual prediction: {str(e)}")
 
 # Sidebar section for API interaction
@@ -220,7 +268,10 @@ if uploaded_file is not None and st.sidebar.button("Retrain Model"):
 
         if response.status_code == 200:
             st.sidebar.success("✅ Data uploaded and retraining started!")
+            logger.info("Data uploaded and retraining started successfully")
         else:
+            logger.warning(f"Failed to upload data: {response.json().get('detail', 'Unknown error')}")
             st.sidebar.error(f"❌ Failed: {response.json().get('detail', 'Unknown error')}")
     except Exception as e:
+        logger.error(f"Error contacting API: {str(e)}", exc_info=True)
         st.sidebar.error(f"❌ Error contacting API: {str(e)}")
