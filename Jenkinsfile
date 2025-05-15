@@ -154,7 +154,13 @@ EOF
                     
                     # Print deployment information
                     echo "Deployment prepared at /tmp/weather_ops_deployment"
-                    echo "To start the deployment, run: cd /tmp/weather_ops_deployment && docker-compose up -d"
+                    
+                    # Actually start the containers
+                    cd /tmp/weather_ops_deployment && docker-compose up -d
+                    
+                    echo "Containers have been started!"
+                    echo "Frontend available at: http://localhost:8501"
+                    echo "Backend API available at: http://localhost:8000"
                 '''
             }
         }
