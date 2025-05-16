@@ -100,6 +100,8 @@ except Exception as e:
         stage('Build Docker Images') {
             steps {
                 sh 'docker-compose build'
+                // Debug: List all images after build
+                sh 'docker images'
             }
         }
         
@@ -108,18 +110,20 @@ except Exception as e:
                 sh 'echo $DOCKER_HUB_CREDS_PSW | docker login -u $DOCKER_HUB_CREDS_USR --password-stdin'
                 
                 // Tag and push backend image with build number
-                sh "docker tag weather_ops_backend ${DOCKER_BACKEND_IMAGE}"
-                sh "docker push ${DOCKER_BACKEND_IMAGE}"
+                sh 'docker tag weather_ops_backend:latest girish445g/weather-ops-backend:${BUILD_NUMBER}'
+                sh 'docker push girish445g/weather-ops-backend:${BUILD_NUMBER}'
+                
+                // Tag and push backend image as latest
+                sh 'docker tag weather_ops_backend:latest girish445g/weather-ops-backend:latest'
+                sh 'docker push girish445g/weather-ops-backend:latest'
                 
                 // Tag and push frontend image with build number
-                sh "docker tag weather_ops_frontend ${DOCKER_FRONTEND_IMAGE}"
-                sh "docker push ${DOCKER_FRONTEND_IMAGE}"
+                sh 'docker tag weather_ops_frontend:latest girish445g/weather-ops-frontend:${BUILD_NUMBER}'
+                sh 'docker push girish445g/weather-ops-frontend:${BUILD_NUMBER}'
                 
-                // Also tag and push as latest
-                sh "docker tag weather_ops_backend ${LATEST_BACKEND_IMAGE}"
-                sh "docker push ${LATEST_BACKEND_IMAGE}"
-                sh "docker tag weather_ops_frontend ${LATEST_FRONTEND_IMAGE}"
-                sh "docker push ${LATEST_FRONTEND_IMAGE}"
+                // Tag and push frontend image as latest
+                sh 'docker tag weather_ops_frontend:latest girish445g/weather-ops-frontend:latest'
+                sh 'docker push girish445g/weather-ops-frontend:latest'
             }
         }
         
