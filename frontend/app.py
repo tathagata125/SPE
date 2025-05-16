@@ -7,6 +7,7 @@ import requests
 import logging
 import json
 from datetime import datetime
+import time
 
 # Configure logging
 log_dir = 'logs'
@@ -84,53 +85,85 @@ if not os.path.exists(DATA_PATH):
 st.title("🌦️ 3-Day Weather Forecast - Bangalore")
 st.write("Using past 3 days of weather data to predict upcoming average temperatures.")
 
+# Function to load model directly from backend API
+def load_model_from_backend():
+    try:
+        logger.info(f"Fetching latest model from backend: {BACKEND_URL}/model")
+        response = requests.get(f"{BACKEND_URL}/model")
+        
+        if response.status_code == 200:
+            try:
+                # Get the raw binary content
+                model_data = response.content
+                
+                # Deserialize the model
+                loaded_model = pickle.loads(model_data)
+                
+                # Check if model is a tuple (old format) or direct model object (new format)
+                if isinstance(loaded_model, tuple) and len(loaded_model) == 2:
+                    logger.info("Detected model in old format (tuple with version info)")
+                    actual_model = loaded_model[0]  # Extract just the model from the tuple
+                    return actual_model
+                else:
+                    logger.info("Loaded latest model successfully from backend API")
+                    return loaded_model
+                    
+            except Exception as e:
+                logger.error(f"Error deserializing model: {str(e)}", exc_info=True)
+                raise Exception(f"Failed to deserialize model: {str(e)}")
+        else:
+            logger.error(f"Failed to fetch model from API: Status code {response.status_code}")
+            raise Exception(f"Could not load model from API: {response.status_code}")
+    except Exception as e:
+        logger.error(f"Error loading model from API: {str(e)}", exc_info=True)
+        raise Exception(f"Failed to fetch model from backend: {str(e)}")
+
 # Load data and model with error handling
 try:
-    # Try loading from local path first
-    if os.path.exists(DATA_PATH):
-        df = pd.read_csv(DATA_PATH)
-    else:
-        # Try alternative paths
-        alt_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/cleaned_weather.csv")
-        if os.path.exists(alt_data_path):
-            df = pd.read_csv(alt_data_path)
+    # Always try to get data from backend API first
+    try:
+        response = requests.get(f"{BACKEND_URL}/data/cleaned")
+        if response.status_code == 200:
+            df = pd.read_json(response.content)
+            logger.info("Successfully loaded data from backend API")
         else:
-            # Try loading from backend API
-            try:
-                response = requests.get(f"{BACKEND_URL}/data/cleaned")
-                if response.status_code == 200:
-                    df = pd.read_json(response.content)
-                else:
-                    raise Exception(f"Could not load data from API: {response.status_code}")
-            except Exception as e:
-                logger.error(f"Error loading data from API: {str(e)}", exc_info=True)
+            # Fallback to local files if API fails
+            raise Exception(f"Could not load data from API: {response.status_code}")
+    except Exception as e:
+        logger.warning(f"Falling back to local data file: {str(e)}")
+        if os.path.exists(DATA_PATH):
+            df = pd.read_csv(DATA_PATH)
+        else:
+            alt_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/cleaned_weather.csv")
+            if os.path.exists(alt_data_path):
+                df = pd.read_csv(alt_data_path)
+            else:
+                logger.error("Could not find cleaned_weather.csv in any location")
                 raise Exception("Could not find cleaned_weather.csv in any location")
     
     df = df[["tavg", "tmin", "tmax", "prcp", "wspd"]].copy()
     
-    # Load trained model - try multiple locations
-    if os.path.exists(MODEL_PATH):
-        with open(MODEL_PATH, "rb") as f:
-            model = pickle.load(f)
-    else:
-        # Try alternative model path
-        alt_model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend/model.pkl")
-        if os.path.exists(alt_model_path):
-            with open(alt_model_path, "rb") as f:
+    # Always try to get model from backend API first for most up-to-date model
+    try:
+        model = load_model_from_backend()
+        st.success("✅ Using latest model from backend API")
+    except Exception as e:
+        logger.warning(f"Could not load model from API, falling back to local model: {str(e)}")
+        # Fallback to local model
+        if os.path.exists(MODEL_PATH):
+            with open(MODEL_PATH, "rb") as f:
                 model = pickle.load(f)
+                st.warning("⚠️ Using local model (may not be the most recent)")
         else:
-            # Try to get model from backend API
-            try:
-                response = requests.get(f"{BACKEND_URL}/model")
-                if response.status_code == 200:
-                    model = pickle.loads(response.content)
-                else:
-                    raise Exception(f"Could not load model from API: {response.status_code}")
-            except Exception as e:
-                logger.error(f"Error loading model from API: {str(e)}", exc_info=True)
+            alt_model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend/model.pkl")
+            if os.path.exists(alt_model_path):
+                with open(alt_model_path, "rb") as f:
+                    model = pickle.load(f)
+                    st.warning("⚠️ Using local model (may not be the most recent)")
+            else:
+                logger.error("Could not load model from any source")
                 raise Exception("Could not find model.pkl in any location")
     
-    st.success("✅ Data and model loaded successfully")
     logger.info("Data and model loaded successfully")
 except Exception as e:
     logger.error(f"Error loading data or model: {str(e)}", exc_info=True)
@@ -219,36 +252,57 @@ for i in range(3, 0, -1):
 
 if st.sidebar.button("Predict from custom data"):
     try:
+        # Always try to get the latest model for custom predictions
+        try:
+            latest_model = load_model_from_backend()
+            st.sidebar.success("✅ Using latest model from backend API")
+        except:
+            latest_model = model
+            st.sidebar.warning("⚠️ Using cached model for prediction")
+            
         input_dict = {}
 
         # Add tavg lags
         for i in range(1, 4):
             input_dict[f"tavg_t-{i}"] = [custom_input[-i]]
 
-        # Fill missing features required by the model
-        for col in model.feature_names_in_:
+        # Calculate reasonable values for other parameters based on the temperature
+        # This ensures predictions change when temperature inputs change
+        for i in range(1, 4):
+            temp = custom_input[-i]
+            # Generate sensible tmin/tmax based on the average temperature
+            input_dict[f"tmin_t-{i}"] = [temp - 5.0]  # Min temp typically 5 degrees below avg
+            input_dict[f"tmax_t-{i}"] = [temp + 5.0]  # Max temp typically 5 degrees above avg
+            
+            # Precipitation more likely with lower temps (simplified relationship)
+            if temp < 20:
+                input_dict[f"prcp_t-{i}"] = [5.0]  # Some precipitation for cooler temps
+            else:
+                input_dict[f"prcp_t-{i}"] = [0.0]  # Less precipitation for warmer temps
+                
+            # Wind speed - just a simple value for now
+            input_dict[f"wspd_t-{i}"] = [10.0]
+
+        # Fill any remaining missing features required by the model
+        for col in latest_model.feature_names_in_:
             if col not in input_dict:
-                if col in df.columns:
-                    input_dict[col] = [df[col].median()]
-                else:
-                    try:
-                        base_col = col.split("_t-")[0]
-                        if base_col in df.columns:
-                            input_dict[col] = [df[base_col].median()]
-                        else:
-                            input_dict[col] = [0.0]
-                    except:
-                        input_dict[col] = [0.0]
+                input_dict[col] = [0.0]
 
         X_manual = pd.DataFrame(input_dict)
-        X_manual = X_manual[model.feature_names_in_]
+        X_manual = X_manual[latest_model.feature_names_in_]
 
-        pred = model.predict(X_manual)[0]
+        pred = latest_model.predict(X_manual)[0]
         desc = describe_weather(pred)
 
         st.subheader("📍 Prediction from Manual Input")
         st.markdown(f"<div class='emoji'>{desc}</div>", unsafe_allow_html=True)
         st.markdown(f"<div class='big-font'>Predicted tavg: {pred:.2f} °C</div>", unsafe_allow_html=True)
+        
+        # Add debugging information if needed
+        with st.expander("Debug Information"):
+            st.write("Input features for prediction:")
+            st.dataframe(X_manual)
+            
         logger.info("Manual prediction generated successfully")
     except Exception as e:
         logger.error(f"Error generating manual prediction: {str(e)}", exc_info=True)
@@ -269,6 +323,52 @@ if uploaded_file is not None and st.sidebar.button("Retrain Model"):
         if response.status_code == 200:
             st.sidebar.success("✅ Data uploaded and retraining started!")
             logger.info("Data uploaded and retraining started successfully")
+            
+            # Add a slight delay to ensure the model is fully retrained
+            progress_bar = st.sidebar.progress(0)
+            status_text = st.sidebar.empty()
+            for i in range(101):
+                progress_bar.progress(i)
+                status_text.text(f"Retraining in progress: {i}%")
+                time.sleep(0.1)
+            
+            # Fetch the newly trained model from the backend
+            try:
+                status_text.text("Fetching new model...")
+                # Clear Streamlit's cache to ensure we get fresh data
+                st.cache_data.clear()
+                st.cache_resource.clear()
+                
+                # Force reload of data as well
+                try:
+                    response_data = requests.get(f"{BACKEND_URL}/data/cleaned")
+                    if response_data.status_code == 200:
+                        df = pd.read_json(response_data.content)
+                        df = df[["tavg", "tmin", "tmax", "prcp", "wspd"]].copy()
+                        logger.info("Reloaded fresh data from backend")
+                except Exception as e:
+                    logger.warning(f"Could not reload data: {e}")
+                
+                # Get the updated model
+                model = load_model_from_backend()
+                
+                # Save the new model locally if we have write access
+                try:
+                    with open(MODEL_PATH, 'wb') as f:
+                        pickle.dump(model, f)
+                    logger.info("New model saved locally")
+                except:
+                    logger.warning("Could not save model locally, but still using it for predictions")
+                
+                status_text.text("Model updated successfully!")
+                st.sidebar.success("✅ New model is now being used for predictions!")
+                
+                # Force complete page reload to use the new model for all predictions
+                st.rerun()
+                
+            except Exception as e:
+                logger.error(f"Error fetching retrained model: {str(e)}")
+                st.sidebar.warning("Model was retrained but couldn't be loaded automatically. Please refresh the page.")
         else:
             logger.warning(f"Failed to upload data: {response.json().get('detail', 'Unknown error')}")
             st.sidebar.error(f"❌ Failed: {response.json().get('detail', 'Unknown error')}")

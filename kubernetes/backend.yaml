@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: weather-ops
+  labels:
+    app: weather-ops
+    component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-ops
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: weather-ops
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: girish445g/weather-ops-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "512Mi"
+          requests:
+            cpu: "0.1"
+            memory: "256Mi"
+        volumeMounts:
+        - name: weather-data
+          mountPath: /app/data
+      volumes:
+      - name: weather-data
+        persistentVolumeClaim:
+          claimName: weather-ops-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: weather-ops
+  labels:
+    app: weather-ops
+    component: backend
+spec:
+  ports:
+  - port: 5000
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  selector:
+    app: weather-ops
+    component: backend

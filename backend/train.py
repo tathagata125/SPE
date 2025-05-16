@@ -70,9 +70,14 @@ try:
     print(f"  - numpy: {version_info['numpy_version']}")
     print(f"  - scikit-learn: {version_info['sklearn_version']}")
     
-    # Save model with version info
+    # Save just the model object (not the tuple with version info)
     with open(MODEL_PATH, "wb") as f:
-        pickle.dump((model, version_info), f)
+        pickle.dump(model, f)
+    
+    # Save version info separately if needed
+    version_path = "model_version_info.json"
+    with open(version_path, "w") as f:
+        json.dump(version_info, f)
     
     # Update metrics to include version info
     metrics = {
@@ -87,6 +92,7 @@ try:
         json.dump(metrics, f)
         
     print(f"✅ Model saved to {MODEL_PATH}")
+    print(f"✅ Version info saved to {version_path}")
     print(f"✅ Metrics saved to {METRICS_PATH}")
 except Exception as e:
     print(f"❌ Error saving model or metrics: {str(e)}")

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import pandas as pd
 import os
 import subprocess
@@ -75,6 +76,54 @@ async def root():
     logger.info("Root endpoint accessed")
     return {"message": "Weather Prediction API is running"}
 
+@app.get("/model")
+async def get_model():
+    """Endpoint to provide the trained model for the frontend"""
+    logger.info("Model endpoint accessed")
+    model_path = MODEL_PATH
+
+    if not os.path.exists(model_path):
+        logger.error(f"Model file not found at {model_path}")
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    try:
+        logger.info(f"Model successfully loaded from {model_path}")
+        return FileResponse(model_path, media_type="application/octet-stream", filename="model.pkl")
+    except Exception as e:
+        logger.error(f"Error loading model: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error loading model: {str(e)}")
+
+@app.get("/data/cleaned")
+async def get_cleaned_data():
+    """Endpoint to provide the cleaned data for the frontend"""
+    logger.info("Cleaned data endpoint accessed")
+    
+    if not os.path.exists(CLEANED_DATA_PATH):
+        logger.error(f"Cleaned data file not found at {CLEANED_DATA_PATH}")
+        raise HTTPException(status_code=404, detail="Cleaned data not found")
+    
+    try:
+        df = pd.read_csv(CLEANED_DATA_PATH)
+        logger.info(f"Cleaned data successfully loaded from {CLEANED_DATA_PATH}")
+        return df.to_json(orient="records")
+    except Exception as e:
+        logger.error(f"Error loading cleaned data: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error loading cleaned data: {str(e)}")
+
+def initialize_dvc():
+    """Initialize DVC if it's not already initialized"""
+    try:
+        # Check if .dvc directory exists
+        if not os.path.exists(".dvc"):
+            logger.info("Initializing DVC with --no-scm flag")
+            subprocess.run(["dvc", "init", "--no-scm"], check=True)
+            return True
+        logger.info("DVC already initialized")
+        return True
+    except Exception as e:
+        logger.error(f"DVC initialization error: {str(e)}", exc_info=True)
+        return False
+
 def manual_pipeline():
     """Run the data processing pipeline manually without DVC"""
     logger.info("Starting manual data processing pipeline")
@@ -85,31 +134,36 @@ def manual_pipeline():
         # Execute data cleaning
         if os.path.exists(RAW_DATA_PATH):
             logger.info("Running data cleaning process")
-            subprocess.run(["python", "data_cleaner.py"], check=True)
+            result = subprocess.run(["python", "data_cleaner.py"], check=True, capture_output=True, text=True)
+            logger.info(f"Data cleaner output: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"Data cleaner stderr: {result.stderr}")
+        else:
+            logger.error(f"Raw data file not found at {RAW_DATA_PATH}")
+            return False
         
         # Execute model training
         if os.path.exists(CLEANED_DATA_PATH):
             logger.info("Running model training process")
-            subprocess.run(["python", "train.py"], check=True)
+            result = subprocess.run(["python", "train.py"], check=True, capture_output=True, text=True)
+            logger.info(f"Model training output: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"Model training stderr: {result.stderr}")
+                
+            # Verify that model file was created
+            if os.path.exists(MODEL_PATH):
+                logger.info(f"Model file created successfully at {MODEL_PATH}")
+            else:
+                logger.error(f"Model file was not created at {MODEL_PATH}")
+                return False
+        else:
+            logger.error(f"Cleaned data file not found at {CLEANED_DATA_PATH}")
+            return False
         
         logger.info("Manual pipeline completed successfully")
         return True
     except Exception as e:
         logger.error(f"Manual pipeline error: {str(e)}", exc_info=True)
-        return False
-
-def initialize_dvc():
-    """Initialize DVC if it's not already initialized"""
-    try:
-        # Check if .dvc directory exists
-        if not os.path.exists(".dvc"):
-            logger.info("Initializing DVC")
-            subprocess.run(["dvc", "init"], check=True)
-            return True
-        logger.info("DVC already initialized")
-        return True
-    except Exception as e:
-        logger.error(f"DVC initialization error: {str(e)}", exc_info=True)
         return False
 
 @app.post("/upload/")
@@ -146,6 +200,9 @@ async def upload_dataset(file: UploadFile = File(...)):
     combined.to_csv(RAW_DATA_PATH, index=False)
     logger.info(f"Data saved to {RAW_DATA_PATH}, {len(combined)} total rows")
 
+    pipeline_success = False
+    error_msg = None
+    
     # Try DVC approach first
     try:
         # Initialize DVC if needed
@@ -153,17 +210,37 @@ async def upload_dataset(file: UploadFile = File(...)):
             logger.info("Running DVC pipeline")
             subprocess.run(["dvc", "repro"], check=True)
             logger.info("DVC pipeline completed successfully")
-            return {"message": "✅ Data uploaded, appended, and model retrained using DVC."}
+            pipeline_success = True
     except Exception as e:
-        logger.warning(f"DVC pipeline failed: {str(e)}")
-        # If DVC fails, try manual approach
+        error_msg = str(e)
+        logger.warning(f"DVC pipeline failed: {error_msg}")
+    
+    # If DVC fails, try manual approach
+    if not pipeline_success:
+        logger.info("Falling back to manual pipeline")
         if manual_pipeline():
             logger.info("Manual pipeline completed successfully")
-            return {"message": "✅ Data uploaded, appended, and model retrained manually."}
+            pipeline_success = True
         else:
             logger.error("Both DVC and manual pipeline failed")
-            # Both approaches failed, but at least save the data
             return {"message": "⚠️ Data uploaded and appended, but model retraining failed."}
+    
+    # Return detailed success message
+    if pipeline_success:
+        # Verify output files exist
+        cleaned_exists = os.path.exists(CLEANED_DATA_PATH)
+        model_exists = os.path.exists(MODEL_PATH)
+        logger.info(f"Pipeline completed. Cleaned data exists: {cleaned_exists}, Model exists: {model_exists}")
+        
+        if cleaned_exists and model_exists:
+            return {"message": "✅ Data uploaded, appended, and model retrained successfully."}
+        else:
+            return {
+                "message": "⚠️ Pipeline completed but some files are missing.",
+                "details": f"Cleaned data exists: {cleaned_exists}, Model exists: {model_exists}"
+            }
+    else:
+        return {"message": f"⚠️ Data uploaded and appended, but model retraining failed: {error_msg}"}
 
 import uvicorn
 

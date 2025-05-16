@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: weather-ops
+  labels:
+    app: weather-ops
+    component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-ops
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: weather-ops
+        component: frontend
+    spec:
+      initContainers:
+      - name: dvc-init
+        image: python:3.9-slim
+        command: ["/bin/bash", "/scripts/init_dvc.sh"]
+        volumeMounts:
+        - name: dvc-init-script
+          mountPath: /scripts
+        - name: weather-data
+          mountPath: /app/data
+      containers:
+      - name: frontend
+        image: girish445g/weather-ops-frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8501
+        env:
+        - name: BACKEND_URL
+          value: "http://backend:5000"
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "512Mi"
+          requests:
+            cpu: "0.1"
+            memory: "256Mi"
+        volumeMounts:
+        - name: weather-data
+          mountPath: /app/data
+      volumes:
+      - name: weather-data
+        persistentVolumeClaim:
+          claimName: weather-ops-pvc
+      - name: dvc-init-script
+        configMap:
+          name: dvc-init-script
+          defaultMode: 0755
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: weather-ops
+  labels:
+    app: weather-ops
+    component: frontend
+spec:
+  ports:
+  - port: 8501
+    targetPort: 8501
+    protocol: TCP
+    name: http
+  selector:
+    app: weather-ops
+    component: frontend
