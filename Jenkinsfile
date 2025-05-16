@@ -164,6 +164,20 @@ EOF
                 '''
             }
         }
+
+        stage('Kubernetes Deployment') {
+            steps {
+                echo 'Deploying to Kubernetes...'
+                sh './deploy_kubernetes.sh'
+            }
+        }
+        
+        stage('Apply Kubernetes HPA') {
+            steps {
+                echo 'Applying backend HPA manifest to Kubernetes...'
+                sh 'kubectl apply -f kubernetes/backend-hpa.yaml'
+            }
+        }
     }
     
     post {
