@@ -34,6 +34,15 @@ fi
 echo "Creating namespace..."
 kubectl apply -f kubernetes/namespace.yaml
 
+# Deploy persistent volumes first
+echo "Deploying persistent storage..."
+kubectl apply -f kubernetes/persistent-volume.yaml
+
+# Deploy ConfigMap for DVC init script
+echo "Deploying ConfigMaps..."
+kubectl apply -f kubernetes/configmap.yaml
+kubectl apply -f kubernetes/dvc-init.yaml
+
 # Deploy backend
 echo "Deploying backend..."
 kubectl apply -f kubernetes/backend.yaml
