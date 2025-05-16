@@ -169,6 +169,41 @@ EOF
             }
         }
 
+        stage('Setup Kubernetes') {
+            steps {
+                echo 'Setting up Kubernetes environment...'
+                sh '''
+                    # Install kubectl if not present
+                    if ! command -v kubectl &> /dev/null; then
+                        echo "Installing kubectl..."
+                        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                        sudo mv kubectl /usr/local/bin/ || mv kubectl ~/bin/ || mkdir -p ~/bin && mv kubectl ~/bin/
+                        export PATH=$PATH:~/bin
+                    fi
+                    
+                    # Setup kubeconfig directory
+                    mkdir -p ~/.kube
+                    
+                    # Check if kubeconfig exists
+                    if [ ! -f ~/.kube/config ]; then
+                        echo "WARNING: No Kubernetes configuration found in Jenkins!"
+                        echo "=============================================="
+                        echo "IMPORTANT: Before running the pipeline again, add your Minikube config to Jenkins"
+                        echo "Steps:"
+                        echo "1. In your local machine, run: kubectl config view --flatten"
+                        echo "2. Add the output as a Jenkins credential 'kubeconfig'"
+                        echo "   OR copy it to ~/.kube/config in the Jenkins workspace"
+                        echo "=============================================="
+                        exit 1
+                    fi
+                    
+                    # Make deployment script executable
+                    chmod +x ./deploy_kubernetes.sh
+                '''
+            }
+        }
+
         stage('Kubernetes Deployment') {
             steps {
                 echo 'Deploying to Kubernetes...'

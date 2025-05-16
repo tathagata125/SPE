@@ -13,20 +13,31 @@ if ! command -v kubectl &> /dev/null; then
     exit 1
 fi
 
-# Check if minikube is installed (for local development)
-if command -v minikube &> /dev/null; then
-    MINIKUBE_STATUS=$(minikube status --format={{.Host}} 2>/dev/null || echo "Not Running")
-    if [ "$MINIKUBE_STATUS" != "Running" ]; then
-        echo "Starting Minikube..."
-        minikube start
-    else
-        echo "Minikube is already running."
+# Check if we're running in CI environment (Jenkins)
+if [ -n "$JENKINS_HOME" ]; then
+    echo "Running in Jenkins - skipping Minikube start"
+    # Skip Minikube startup but still check kubectl is available
+    if ! command -v kubectl &> /dev/null; then
+        echo "kubectl is not installed. Please install kubectl first."
+        exit 1
     fi
-    
-    # Enable ingress addon if not already enabled
-    if ! minikube addons list | grep -q "ingress: enabled"; then
-        echo "Enabling Ingress addon in Minikube..."
-        minikube addons enable ingress
+else
+    # Original Minikube startup logic for local development
+    # Check if minikube is installed (for local development)
+    if command -v minikube &> /dev/null; then
+        MINIKUBE_STATUS=$(minikube status --format={{.Host}} 2>/dev/null || echo "Not Running")
+        if [ "$MINIKUBE_STATUS" != "Running" ]; then
+            echo "Starting Minikube..."
+            minikube start
+        else
+            echo "Minikube is already running."
+        fi
+        
+        # Enable ingress addon if not already enabled
+        if ! minikube addons list | grep -q "ingress: enabled"; then
+            echo "Enabling Ingress addon in Minikube..."
+            minikube addons enable ingress
+        fi
     fi
 fi
 
