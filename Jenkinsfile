@@ -1,6 +1,10 @@
 pipeline {
     agent any
     
+    parameters {
+        booleanParam(name: 'FORCE_K8S_DEPLOY', defaultValue: false, description: 'Force actual deployment to Kubernetes (not simulation)')
+    }
+    
     environment {
         DOCKER_HUB_CREDS = credentials('dockerhub-login')
         DOCKER_BACKEND_IMAGE = "girish445g/weather-ops-backend:${BUILD_NUMBER}"
@@ -8,6 +12,8 @@ pipeline {
         LATEST_BACKEND_IMAGE = "girish445g/weather-ops-backend:latest"
         LATEST_FRONTEND_IMAGE = "girish445g/weather-ops-frontend:latest"
         PYTHON_VERSION = "3.12"
+        // Set FORCE_K8S_DEPLOY based on parameter
+        FORCE_K8S_DEPLOY = "${params.FORCE_K8S_DEPLOY == true ? '1' : '0'}"
     }
     
     stages {
@@ -233,7 +239,14 @@ EOF
         stage('Kubernetes Deployment') {
             steps {
                 echo 'Deploying to Kubernetes...'
-                sh './deploy_kubernetes.sh'
+                sh '''
+                if [ "$FORCE_K8S_DEPLOY" == "1" ]; then
+                    echo "Forcing actual deployment to Kubernetes..."
+                    ./deploy_kubernetes.sh
+                else
+                    echo "Simulating Kubernetes deployment..."
+                fi
+                '''
             }
         }
         
@@ -241,11 +254,10 @@ EOF
             steps {
                 echo 'Applying backend HPA manifest to Kubernetes...'
                 sh '''
-                if [ -n "$JENKINS_HOME" ]; then
-                    echo "Running in Jenkins - simulating HPA application"
-                    echo "In a real production environment, this would apply HPA to a production cluster."
-                else
+                if [ "$FORCE_K8S_DEPLOY" == "1" ]; then
                     kubectl apply -f kubernetes/backend-hpa.yaml
+                else
+                    echo "Simulating HPA application..."
                 fi
                 '''
             }

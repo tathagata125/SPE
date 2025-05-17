@@ -5,38 +5,38 @@
 
 set -e  # Exit on error
 
+# Environment variable to force deployment even in Jenkins
+# Set FORCE_K8S_DEPLOY=1 to force actual deployment in any environment
+FORCE_K8S_DEPLOY=${FORCE_K8S_DEPLOY:-0}
+
 echo "Deploying Weather_ops to Kubernetes..."
 
 # Check if we're running in CI environment (Jenkins)
+if [ -n "$JENKINS_HOME" ] && [ "$FORCE_K8S_DEPLOY" != "1" ]; then
+    echo "Running in Jenkins environment (simulation mode)"
+    echo "To force real deployment in Jenkins, set FORCE_K8S_DEPLOY=1"
+    echo "Deployment completed successfully (simulated)!"
+    exit 0
+fi
+
+# Even if in Jenkins, we're now in forced deployment mode or in local environment
 if [ -n "$JENKINS_HOME" ]; then
-    echo "Running in Jenkins environment"
+    echo "Running in Jenkins environment with forced deployment mode"
     
-    # Check if we have access to shared Kubernetes configuration
-    if [ -f ~/.kube/config ] || [ -f /opt/shared-k8s-config/config ]; then
-        echo "Kubernetes configuration found, proceeding with deployment"
-        
-        # Copy shared config if needed
-        if [ ! -f ~/.kube/config ] && [ -f /opt/shared-k8s-config/config ]; then
-            mkdir -p ~/.kube
-            cp /opt/shared-k8s-config/config ~/.kube/config
-            chmod 600 ~/.kube/config
-            # Update paths in config to use shared Minikube certs
-            sed -i "s|$HOME/.minikube|/opt/shared-k8s-config/.minikube|g" ~/.kube/config
-        fi
-        
-        # Test kubectl access
-        if ! kubectl get nodes &> /dev/null; then
-            echo "ERROR: Cannot connect to Kubernetes cluster"
-            echo "Check if the shared configuration is properly set up"
-            echo "Falling back to simulation mode"
-            echo "Deployment completed successfully (simulated)!"
-            exit 0
-        fi
-    else
-        echo "Kubernetes configuration not found"
-        echo "Falling back to simulation mode"
-        echo "Deployment completed successfully (simulated)!"
-        exit 0
+    # Set up shared kubeconfig if available
+    if [ -f /opt/shared-k8s-config/config ]; then
+        echo "Using shared Kubernetes configuration..."
+        mkdir -p ~/.kube
+        cp /opt/shared-k8s-config/config ~/.kube/config
+        chmod 600 ~/.kube/config
+        sed -i "s|\$HOME/.minikube|/opt/shared-k8s-config/.minikube|g" ~/.kube/config
+    fi
+    
+    # Test kubectl access
+    if ! kubectl get nodes &> /dev/null; then
+        echo "ERROR: Cannot connect to Kubernetes cluster"
+        echo "Check if the shared configuration is properly set up"
+        exit 1
     fi
 else
     # When not running in Jenkins, use normal local setup
