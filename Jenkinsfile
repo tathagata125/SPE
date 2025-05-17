@@ -112,11 +112,11 @@ except Exception as e:
             usernameVariable: 'DOCKER_USER',
             passwordVariable: 'DOCKER_PASS'
         )]) {
-            sh """
+            sh '''
                mkdir -p ~/.docker
                     echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"$(echo -n "$DOCKER_USER:$DOCKER_PASS" | base64 | tr -d '\\n')\"},\"credsStore\":\"\"}}" > ~/.docker/config.json
                     chmod 600 ~/.docker/config.json
-                """
+                '''
                 
                 // Tag and push backend image with build number
                 sh "docker tag weather_ops_backend ${DOCKER_BACKEND_IMAGE}"
