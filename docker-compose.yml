@@ -4,6 +4,7 @@ services:
   backend:
     build:
       context: ./backend
+    image: weather_ops_backend
     ports:
       - "5001:5000"
     volumes:
@@ -15,6 +16,7 @@ services:
   frontend:
     build:
       context: ./frontend
+    image: weather_ops_frontend
     ports:
       - "8502:8501"
     environment:
