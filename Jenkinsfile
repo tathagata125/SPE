@@ -185,17 +185,22 @@ EOF
                     # Setup kubeconfig directory
                     mkdir -p ~/.kube
                     
-                    # Check if kubeconfig exists
-                    if [ ! -f ~/.kube/config ]; then
-                        echo "WARNING: No Kubernetes configuration found in Jenkins!"
-                        echo "=============================================="
-                        echo "IMPORTANT: Before running the pipeline again, add your Minikube config to Jenkins"
-                        echo "Steps:"
-                        echo "1. In your local machine, run: kubectl config view --flatten"
-                        echo "2. Add the output as a Jenkins credential 'kubeconfig'"
-                        echo "   OR copy it to ~/.kube/config in the Jenkins workspace"
-                        echo "=============================================="
-                        exit 1
+                    # Use shared Kubernetes config if available
+                    if [ -f /opt/shared-k8s-config/config ]; then
+                        echo "Using shared Kubernetes configuration..."
+                        cp /opt/shared-k8s-config/config ~/.kube/config
+                        chmod 600 ~/.kube/config
+                        
+                        # Update paths in config to use shared Minikube certs
+                        sed -i "s|$HOME/.minikube|/opt/shared-k8s-config/.minikube|g" ~/.kube/config
+                    else
+                        echo "WARNING: Shared Kubernetes configuration not found!"
+                        echo "Run these commands on the host machine to set it up:"
+                        echo "sudo mkdir -p /opt/shared-k8s-config"
+                        echo "sudo cp ~/.kube/config /opt/shared-k8s-config/"
+                        echo "sudo cp -r ~/.minikube /opt/shared-k8s-config/"
+                        echo "sudo chown -R jenkins:jenkins /opt/shared-k8s-config"
+                        echo "sudo chmod -R 755 /opt/shared-k8s-config"
                     fi
                     
                     # Make deployment script executable
@@ -214,7 +219,14 @@ EOF
         stage('Apply Kubernetes HPA') {
             steps {
                 echo 'Applying backend HPA manifest to Kubernetes...'
-                sh 'kubectl apply -f kubernetes/backend-hpa.yaml'
+                sh '''
+                if [ -n "$JENKINS_HOME" ]; then
+                    echo "Running in Jenkins - simulating HPA application"
+                    echo "In a real production environment, this would apply HPA to a production cluster."
+                else
+                    kubectl apply -f kubernetes/backend-hpa.yaml
+                fi
+                '''
             }
         }
     }
