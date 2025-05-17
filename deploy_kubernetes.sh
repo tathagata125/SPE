@@ -12,13 +12,20 @@ if [ -n "$JENKINS_HOME" ]; then
     echo "Running in Jenkins environment"
     
     # Check if we have access to shared Kubernetes configuration
-    if [ -f ~/.kube/config ] && grep -q "minikube" ~/.kube/config; then
-        echo "Using shared Minikube configuration..."
+    if [ -f ~/.kube/config ] || [ -f /opt/shared-k8s-config/config ]; then
+        echo "Kubernetes configuration found, proceeding with deployment"
+        
+        # Copy shared config if needed
+        if [ ! -f ~/.kube/config ] && [ -f /opt/shared-k8s-config/config ]; then
+            mkdir -p ~/.kube
+            cp /opt/shared-k8s-config/config ~/.kube/config
+            chmod 600 ~/.kube/config
+            # Update paths in config to use shared Minikube certs
+            sed -i "s|$HOME/.minikube|/opt/shared-k8s-config/.minikube|g" ~/.kube/config
+        fi
         
         # Test kubectl access
-        if kubectl get nodes &> /dev/null; then
-            echo "Successfully connected to Kubernetes cluster"
-        else
+        if ! kubectl get nodes &> /dev/null; then
             echo "ERROR: Cannot connect to Kubernetes cluster"
             echo "Check if the shared configuration is properly set up"
             echo "Falling back to simulation mode"
@@ -26,7 +33,7 @@ if [ -n "$JENKINS_HOME" ]; then
             exit 0
         fi
     else
-        echo "Shared Kubernetes configuration not found or invalid"
+        echo "Kubernetes configuration not found"
         echo "Falling back to simulation mode"
         echo "Deployment completed successfully (simulated)!"
         exit 0
