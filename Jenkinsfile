@@ -107,16 +107,8 @@ except Exception as e:
             steps {
                 script{
                 
-               withCredentials([usernamePassword(
-            credentialsId: 'DockerHubCred1',
-            usernameVariable: 'DOCKER_USER',
-            passwordVariable: 'DOCKER_PASS'
-        )]) {
-            sh '''
-               mkdir -p ~/.docker
-                    echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"$(echo -n "$DOCKER_USER:$DOCKER_PASS" | base64 | tr -d '\\n')\"},\"credsStore\":\"\"}}" > ~/.docker/config.json
-                    chmod 600 ~/.docker/config.json
-                '''
+               withCredentials([string(credentialsId: 'DockerHubCred', variable: 'DOCKER_HUB_PASSWORD')]) {
+						sh "echo '${DOCKER_HUB_PASSWORD}' | docker login -u 'tathagata125' --password-stdin"
                 
                 // Tag and push backend image with build number
                 sh "docker tag weather_ops_backend ${DOCKER_BACKEND_IMAGE}"
