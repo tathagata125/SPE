@@ -240,11 +240,19 @@ EOF
             steps {
                 echo 'Deploying to Kubernetes...'
                 sh '''
-                if [ "$FORCE_K8S_DEPLOY" == "1" ]; then
+                if [ "$FORCE_K8S_DEPLOY" = "1" ]; then
                     echo "Forcing actual deployment to Kubernetes..."
                     ./deploy_kubernetes.sh
                 else
                     echo "Simulating Kubernetes deployment..."
+                    echo "This is a simulated Kubernetes deployment environment."
+                    echo "In a real deployment, Weather_ops would be deployed to a Kubernetes cluster with:"
+                    echo "- Backend deployment (machine learning API)"
+                    echo "- Frontend deployment (Streamlit UI)"
+                    echo "- Persistent storage for weather data and models"
+                    echo "- ConfigMaps for configuration"
+                    echo "- Services for networking"
+                    echo "- Ingress for external access"
                 fi
                 '''
             }
@@ -254,10 +262,12 @@ EOF
             steps {
                 echo 'Applying backend HPA manifest to Kubernetes...'
                 sh '''
-                if [ "$FORCE_K8S_DEPLOY" == "1" ]; then
+                if [ "$FORCE_K8S_DEPLOY" = "1" ]; then
                     kubectl apply -f kubernetes/backend-hpa.yaml
                 else
                     echo "Simulating HPA application..."
+                    echo "In a real environment, this would configure horizontal pod autoscaling"
+                    echo "to automatically scale the backend based on CPU usage."
                 fi
                 '''
             }
