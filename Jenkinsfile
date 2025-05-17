@@ -105,6 +105,7 @@ except Exception as e:
         
         stage('Push to Docker Hub') {
             steps {
+                script{
                 
                withCredentials([usernamePassword(
             credentialsId: 'DockerHubCred1',
@@ -112,17 +113,9 @@ except Exception as e:
             passwordVariable: 'DOCKER_PASS'
         )]) {
             sh """
-                # Directly create authenticated config
-                mkdir -p ~/.docker
-                echo '{
-                  "auths": {
-                    "https://index.docker.io/v1/": {
-                      "auth": "$(echo -n "${DOCKER_USER}:${DOCKER_PASS}" | base64 | tr -d '\\n')"
-                    }
-                  },
-                  "credsStore": ""
-                }' > ~/.docker/config.json
-                chmod 600 ~/.docker/config.json
+               mkdir -p ~/.docker
+                    echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"$(echo -n "$DOCKER_USER:$DOCKER_PASS" | base64 | tr -d '\\n')\"},\"credsStore\":\"\"}}" > ~/.docker/config.json
+                    chmod 600 ~/.docker/config.json
                 """
                 
                 // Tag and push backend image with build number
@@ -139,9 +132,9 @@ except Exception as e:
                 sh "docker tag weather_ops_frontend ${LATEST_FRONTEND_IMAGE}"
                 sh "docker push ${LATEST_FRONTEND_IMAGE}"
                }
-                
-            }
+            }  
         }
+    }
         
         stage('Deploy') {
             steps {
