@@ -107,13 +107,15 @@ except Exception as e:
             steps {
                 
                sh '''
-                # Disable Docker credential storage
-                mkdir -p ~/.docker
-                echo '{"credsStore":""}' > ~/.docker/config.json
+            # Properly disable credential storage
+            mkdir -p /var/lib/jenkins/.docker
+            echo '{"credsStore":"","auths":{}}' > /var/lib/jenkins/.docker/config.json
+            chmod 600 /var/lib/jenkins/.docker/config.json
             
-                # Login (using existing ENV vars)
-                echo "$DOCKER_HUB_CREDS_PSW" | docker login -u "$DOCKER_HUB_CREDS_USR" --password-stdin
-            '''
+            # Login with explicit path to config
+            DOCKER_CONFIG=/var/lib/jenkins/.docker \
+            echo "$DOCKER_HUB_CREDS_PSW" | docker login -u "$DOCKER_HUB_CREDS_USR" --password-stdin
+        '''
                 
                 // Tag and push backend image with build number
                 sh "docker tag weather_ops_backend ${DOCKER_BACKEND_IMAGE}"
