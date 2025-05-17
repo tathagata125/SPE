@@ -23,21 +23,26 @@ fi
 if [ -n "$JENKINS_HOME" ]; then
     echo "Running in Jenkins environment with forced deployment mode"
     
-    # Set up shared kubeconfig if available
+    # Check for shared config and set KUBECONFIG if available
     if [ -f /opt/shared-k8s-config/config ]; then
         echo "Using shared Kubernetes configuration..."
-        mkdir -p ~/.kube
-        cp /opt/shared-k8s-config/config ~/.kube/config
-        chmod 600 ~/.kube/config
-        sed -i "s|\$HOME/.minikube|/opt/shared-k8s-config/.minikube|g" ~/.kube/config
+        export KUBECONFIG=/opt/shared-k8s-config/config
+        chmod 600 $KUBECONFIG
+    else
+        echo "Shared Kubernetes configuration not found at /opt/shared-k8s-config/config"
+        echo "Please run setup_jenkins_k8s.sh to create it"
+        exit 1
     fi
     
     # Test kubectl access
     if ! kubectl get nodes &> /dev/null; then
         echo "ERROR: Cannot connect to Kubernetes cluster"
-        echo "Check if the shared configuration is properly set up"
+        echo "Make sure Minikube is running with --listen-address=0.0.0.0"
+        echo "Run: minikube stop && minikube start --listen-address=0.0.0.0"
         exit 1
     fi
+    
+    echo "Successfully connected to Kubernetes cluster from Jenkins"
 else
     # When not running in Jenkins, use normal local setup
     # Check if kubectl is installed

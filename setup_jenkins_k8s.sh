@@ -29,17 +29,35 @@ fi
 echo "Creating shared Kubernetes config directory at $SHARED_CONFIG_DIR"
 mkdir -p $SHARED_CONFIG_DIR
 
-# Copy Kubernetes config and check if it exists
-if [ -f "$USER_HOME/.kube/config" ]; then
-  echo "Copying Kubernetes config from $USER_HOME/.kube/config"
-  cp $USER_HOME/.kube/config $SHARED_CONFIG_DIR/
-else
-  echo "ERROR: Kubernetes config not found at $USER_HOME/.kube/config"
-  echo "Please ensure Minikube is properly configured."
-  exit 1
-fi
+# Get Minikube IP address
+MINIKUBE_IP=$(minikube ip)
+echo "Detected Minikube IP: $MINIKUBE_IP"
 
-# Copy Minikube certificates and check if they exist
+# Create a simplified kubeconfig that uses direct IP communication
+echo "Creating simplified kubeconfig for Jenkins..."
+cat > $SHARED_CONFIG_DIR/config << EOF
+apiVersion: v1
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://${MINIKUBE_IP}:8443
+  name: minikube
+contexts:
+- context:
+    cluster: minikube
+    user: minikube
+  name: minikube
+current-context: minikube
+kind: Config
+preferences: {}
+users:
+- name: minikube
+  user:
+    client-certificate: ${SHARED_CONFIG_DIR}/.minikube/profiles/minikube/client.crt
+    client-key: ${SHARED_CONFIG_DIR}/.minikube/profiles/minikube/client.key
+EOF
+
+# Copy Minikube certificates
 if [ -d "$USER_HOME/.minikube" ]; then
   echo "Copying Minikube certificates from $USER_HOME/.minikube"
   cp -r $USER_HOME/.minikube $SHARED_CONFIG_DIR/
@@ -62,9 +80,20 @@ else
   echo "  sudo chmod -R 755 $SHARED_CONFIG_DIR"
 fi
 
+# Test the configuration
+echo "Testing Kubernetes configuration..."
+KUBECONFIG=$SHARED_CONFIG_DIR/config kubectl get nodes || {
+  echo "❌ Failed to connect to Minikube with the generated configuration"
+  echo "This might be because Minikube is not accessible from within Jenkins"
+  echo "You might need to start Minikube with more permissive networking:"
+  echo "  minikube stop"
+  echo "  minikube start --listen-address=0.0.0.0"
+  exit 1
+}
+
 echo ""
 echo "✅ Kubernetes configuration for Jenkins is ready!"
 echo "The shared configuration is available at: $SHARED_CONFIG_DIR"
 echo ""
-echo "If your Jenkins server is running, you can now execute your pipeline."
-echo "If you need to check the current configuration, run: ls -la $SHARED_CONFIG_DIR"
+echo "If your Jenkins server is running, you can now execute your pipeline with FORCE_K8S_DEPLOY=1."
+echo "If you need to check the current configuration, run: KUBECONFIG=$SHARED_CONFIG_DIR/config kubectl get nodes"
