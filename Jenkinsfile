@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_HUB_CREDS = credentials('DockerHubCred1')
+        
         DOCKER_BACKEND_IMAGE = "tathagata125/weather-ops-backend:${BUILD_NUMBER}"
         DOCKER_FRONTEND_IMAGE = "tathagata125/weather-ops-frontend:${BUILD_NUMBER}"
         LATEST_BACKEND_IMAGE = "tathagata125/weather-ops-backend:latest"
@@ -138,6 +138,7 @@ except Exception as e:
                 sh "docker push ${LATEST_BACKEND_IMAGE}"
                 sh "docker tag weather_ops_frontend ${LATEST_FRONTEND_IMAGE}"
                 sh "docker push ${LATEST_FRONTEND_IMAGE}"
+               }
                 
             }
         }
