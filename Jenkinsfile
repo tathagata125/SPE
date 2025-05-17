@@ -176,11 +176,32 @@ EOF
                     # Install kubectl if not present
                     if ! command -v kubectl &> /dev/null; then
                         echo "Installing kubectl..."
-                        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-                        chmod +x kubectl
-                        sudo mv kubectl /usr/local/bin/ || mv kubectl ~/bin/ || mkdir -p ~/bin && mv kubectl ~/bin/
-                        export PATH=$PATH:~/bin
+                        # Create a bin directory in Jenkins home
+                        mkdir -p $HOME/bin
+                        
+                        # Try apt installation if we have sudo without password
+                        if command -v apt-get &> /dev/null && sudo -n true 2>/dev/null; then
+                            sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg
+                            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+                            echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+                            sudo apt-get update && sudo apt-get install -y kubectl
+                        else
+                            # Fall back to direct download if apt is not available or sudo needs password
+                            KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+                            echo "Downloading kubectl version ${KUBECTL_VERSION}..."
+                            curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+                            chmod +x kubectl
+                            mv kubectl $HOME/bin/
+                            export PATH=$HOME/bin:$PATH
+                            echo "kubectl installed at $HOME/bin/kubectl"
+                        fi
+                    else
+                        echo "kubectl is already installed at $(which kubectl)"
+                        kubectl version --client
                     fi
+                    
+                    # Add $HOME/bin to PATH permanently for this job
+                    echo "export PATH=$HOME/bin:$PATH" >> $HOME/.bashrc
                     
                     # Setup kubeconfig directory
                     mkdir -p ~/.kube
