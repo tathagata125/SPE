@@ -123,6 +123,7 @@ except Exception as e:
                   "credsStore": ""
                 }' > ~/.docker/config.json
                 chmod 600 ~/.docker/config.json
+                """
                 
                 // Tag and push backend image with build number
                 sh "docker tag weather_ops_backend ${DOCKER_BACKEND_IMAGE}"
