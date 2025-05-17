@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        
+        DOCKER_HUB_CREDS = credentials('DockerHubCred1')
         DOCKER_BACKEND_IMAGE = "tathagata125/weather-ops-backend:${BUILD_NUMBER}"
         DOCKER_FRONTEND_IMAGE = "tathagata125/weather-ops-frontend:${BUILD_NUMBER}"
         LATEST_BACKEND_IMAGE = "tathagata125/weather-ops-backend:latest"
@@ -105,10 +105,9 @@ except Exception as e:
         
         stage('Push to Docker Hub') {
             steps {
-                script{
                 
-               withCredentials([string(credentialsId: 'DockerHubCred', variable: 'DOCKER_HUB_PASSWORD')]) {
-						sh "echo '${DOCKER_HUB_PASSWORD}' | docker login -u 'tathagata125' --password-stdin"
+                sh 'echo $DOCKER_HUB_CREDS_PSW | docker login -u $DOCKER_HUB_CREDS_USR --password-stdin'
+               
                 
                 // Tag and push backend image with build number
                 sh "docker tag weather_ops_backend ${DOCKER_BACKEND_IMAGE}"
@@ -123,8 +122,8 @@ except Exception as e:
                 sh "docker push ${LATEST_BACKEND_IMAGE}"
                 sh "docker tag weather_ops_frontend ${LATEST_FRONTEND_IMAGE}"
                 sh "docker push ${LATEST_FRONTEND_IMAGE}"
-               }
-            }  
+               
+            
         }
     }
         
