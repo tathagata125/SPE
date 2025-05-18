@@ -279,12 +279,86 @@ EOF
                 sh '''
                 if [ "$FORCE_K8S_DEPLOY" = "1" ]; then
                     echo "Deploying Prometheus to Kubernetes..."
+                    
+                    # Create an improved Prometheus ConfigMap with better metric collection
+                    cat > kubernetes/prometheus/prometheus-configmap.yaml << EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: weather-ops
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+      - job_name: 'weather-ops-backend'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - weather-ops
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: backend
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: .*
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            regex: .*
+            action: keep
+        metrics_path: /metrics
+        scheme: http
+      
+      # Static config as a fallback to ensure we're scraping the backend
+      - job_name: 'weather-ops-backend-static'
+        static_configs:
+          - targets: ['backend.weather-ops.svc.cluster.local:5000']
+        metrics_path: /metrics
+      
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/\${1}/proxy/metrics
+EOF
+                    
+                    # Apply the Prometheus configurations
                     kubectl apply -f kubernetes/prometheus/prometheus-configmap.yaml
                     kubectl apply -f kubernetes/prometheus/prometheus-deployment.yaml
                     kubectl apply -f kubernetes/prometheus/prometheus-service.yaml
+                    
+                    # Update the service to use NodePort for easier access
+                    cat > kubernetes/prometheus/prometheus-service.yaml << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: weather-ops
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090
+    nodePort: 30090
+  type: NodePort
+EOF
+                    
+                    kubectl apply -f kubernetes/prometheus/prometheus-service.yaml
+                    
                     echo "Prometheus deployed successfully."
-                    echo "You can access the Prometheus dashboard by port-forwarding:"
-                    echo "kubectl port-forward -n weather-ops svc/prometheus-service 9090:9090"
+                    echo "You can access the Prometheus dashboard at http://\$(minikube ip):30090"
                 else
                     echo "Simulating Prometheus deployment..."
                     echo "In a real environment, this would deploy Prometheus for monitoring:"
@@ -365,7 +439,7 @@ spec:
           name: grafana-datasources
 EOF
 
-                        # Create Grafana service manifest
+                        # Create Grafana service manifest with NodePort for direct access
                         cat > kubernetes/grafana/grafana-service.yaml << EOF
 apiVersion: v1
 kind: Service
@@ -378,8 +452,9 @@ spec:
   ports:
   - port: 3000
     targetPort: 3000
+    nodePort: 30080
     protocol: TCP
-  type: ClusterIP
+  type: NodePort
 EOF
                     fi
                     
@@ -389,8 +464,8 @@ EOF
                     kubectl apply -f kubernetes/grafana/grafana-service.yaml
                     
                     echo "Grafana deployed successfully."
-                    echo "You can access the Grafana dashboard by port-forwarding:"
-                    echo "kubectl port-forward -n weather-ops svc/grafana-service 3000:3000"
+                    echo "You can access the Grafana dashboard directly via NodePort at:"
+                    echo "http://$(minikube ip):30080"
                     echo "Default credentials: admin/admin"
                     
                     # Wait for Grafana to be ready

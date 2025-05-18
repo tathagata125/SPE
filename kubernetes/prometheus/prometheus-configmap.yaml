@@ -13,10 +13,26 @@ data:
       - job_name: 'weather-ops-backend'
         kubernetes_sd_configs:
           - role: endpoints
+            namespaces:
+              names:
+                - weather-ops
         relabel_configs:
           - source_labels: [__meta_kubernetes_service_name]
             action: keep
             regex: backend
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: .*
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            regex: .*
+            action: keep
+        metrics_path: /metrics
+        scheme: http
+      
+      # Static config as a fallback to ensure we're scraping the backend
+      - job_name: 'weather-ops-backend-static'
+        static_configs:
+          - targets: ['backend.weather-ops.svc.cluster.local:5000']
         metrics_path: /metrics
       
       - job_name: 'kubernetes-nodes'
