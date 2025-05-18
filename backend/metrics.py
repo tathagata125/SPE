@@ -1,5 +1,5 @@
 # metrics.py - Prometheus metrics for Weather_Ops backend
-from prometheus_client import Counter, Histogram, Summary, Gauge
+from prometheus_client import Counter, Histogram, Summary
 
 # Define metrics
 # Counter for tracking total prediction requests
@@ -35,23 +35,6 @@ MODEL_LOAD_DURATION = Histogram(
     'weather_model_load_seconds',
     'Time taken to load machine learning models',
     ['model_type']
-)
-
-# Model training metrics
-MODEL_TRAINING_COUNT = Counter(
-    'weather_model_training_total',
-    'Total number of model training runs'
-)
-
-MODEL_TRAINING_DURATION = Histogram(
-    'weather_model_training_seconds',
-    'Duration of model training operations'
-)
-
-MODEL_METRICS = Gauge(
-    'weather_model_metrics',
-    'Model performance metrics',
-    ['metric_name']
 )
 
 # Data metrics

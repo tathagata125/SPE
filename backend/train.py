@@ -4,19 +4,18 @@ import numpy as np
 import json
 import os
 import sys
-import time
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-# Import Prometheus metrics from metrics.py
+# Import Prometheus counters if running as part of the web app
 try:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from backend.metrics import MODEL_TRAINING_COUNT, MODEL_TRAINING_DURATION, MODEL_METRICS, DATA_ROWS_PROCESSED
+    from main import MODEL_TRAINING_COUNT
     prometheus_available = True
     # Increment the training counter
     MODEL_TRAINING_COUNT.inc()
-    print("✅ Prometheus metrics accessed successfully")
+    print("✅ Prometheus metrics updated")
 except ImportError:
     prometheus_available = False
     print("ℹ️ Running standalone - Prometheus metrics not available")
@@ -26,17 +25,10 @@ DATA_PATH = "data/cleaned_weather.csv"
 MODEL_PATH = "model.pkl"
 METRICS_PATH = "metrics.json"
 
-# Measure training duration
-start_time = time.time()
-
 # Add error handling for file operations
 try:
     df = pd.read_csv(DATA_PATH)
     print(f"✅ Successfully loaded data from {DATA_PATH}")
-    
-    if prometheus_available:
-        # Track number of rows processed
-        DATA_ROWS_PROCESSED.labels(data_type='training').inc(len(df))
 except FileNotFoundError:
     print(f"❌ Error: Could not find {DATA_PATH}")
     exit(1)
@@ -76,12 +68,6 @@ rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
 print(f"MAE: {mae:.2f}")
 print(f"RMSE: {rmse:.2f}")
-
-# Update model metrics in Prometheus
-if prometheus_available:
-    MODEL_METRICS.labels(metric_name='mae').set(mae)
-    MODEL_METRICS.labels(metric_name='rmse').set(rmse)
-    MODEL_TRAINING_DURATION.observe(time.time() - start_time)
 
 # Save model and metrics with error handling
 try:

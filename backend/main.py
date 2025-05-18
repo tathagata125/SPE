@@ -9,29 +9,7 @@ import logging
 import json
 import time
 from datetime import datetime
-from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
-
-# Import metrics from central metrics module
-from metrics import (
-    PREDICTION_REQUESTS, 
-    PREDICTION_LATENCY, 
-    MODEL_TRAINING_COUNT, 
-    DATA_ROWS_PROCESSED,
-    MODEL_METRICS,
-    MODEL_TRAINING_DURATION
-)
-
-# Aliases for backward compatibility and simpler reference
-REQUEST_COUNT = PREDICTION_REQUESTS
-REQUEST_LATENCY = PREDICTION_LATENCY
-MODEL_PREDICTION_COUNT = Counter(
-    'model_predictions_total',
-    'Total number of model predictions'
-)
-DATA_UPLOAD_COUNT = Counter(
-    'data_upload_total',
-    'Total number of data uploads'
-)
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 # Configure logging
 log_file = os.path.join('logs', f'backend_{datetime.now().strftime("%Y-%m-%d")}.log')
@@ -67,6 +45,30 @@ logger.addHandler(file_handler)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(console_handler)
+
+# Prometheus metrics
+REQUEST_COUNT = Counter(
+    'http_requests_total', 
+    'Total HTTP Requests', 
+    ['method', 'endpoint', 'status']
+)
+REQUEST_LATENCY = Histogram(
+    'http_request_duration_seconds', 
+    'HTTP Request Latency', 
+    ['method', 'endpoint']
+)
+MODEL_PREDICTION_COUNT = Counter(
+    'model_predictions_total',
+    'Total number of model predictions'
+)
+MODEL_TRAINING_COUNT = Counter(
+    'model_training_total',
+    'Total number of model training runs'
+)
+DATA_UPLOAD_COUNT = Counter(
+    'data_upload_total',
+    'Total number of data uploads'
+)
 
 app = FastAPI()
 
