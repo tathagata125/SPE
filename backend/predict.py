@@ -4,6 +4,15 @@ import numpy as np
 import os
 import sys
 
+# Import Prometheus counters if running as part of the web app
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from main import MODEL_PREDICTION_COUNT
+    prometheus_available = True
+except ImportError:
+    prometheus_available = False
+    print("ℹ️ Running standalone - Prometheus metrics not available")
+
 # Ensure consistent paths
 DATA_PATH = "data/cleaned_weather.csv"
 MODEL_PATH = "model.pkl"
@@ -70,6 +79,8 @@ def predict_next_day():
     try:
         prediction = model.predict(X_new)[0]
         print(f"🌡️ Predicted average temperature for tomorrow: {prediction:.2f}°C")
+        if prometheus_available:
+            MODEL_PREDICTION_COUNT.inc()
         return prediction
     except Exception as e:
         print(f"❌ Error making prediction: {str(e)}")

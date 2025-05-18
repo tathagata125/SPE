@@ -3,9 +3,22 @@ import pickle
 import numpy as np
 import json
 import os
+import sys
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+# Import Prometheus counters if running as part of the web app
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from main import MODEL_TRAINING_COUNT
+    prometheus_available = True
+    # Increment the training counter
+    MODEL_TRAINING_COUNT.inc()
+    print("✅ Prometheus metrics updated")
+except ImportError:
+    prometheus_available = False
+    print("ℹ️ Running standalone - Prometheus metrics not available")
 
 # Ensure consistent data path
 DATA_PATH = "data/cleaned_weather.csv"

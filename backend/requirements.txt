@@ -52,3 +52,4 @@ urllib3==2.4.0
 uvicorn==0.34.2
 watchdog==6.0.0
 dvc==3.48.4
+prometheus-client==0.17.1

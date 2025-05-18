@@ -118,6 +118,12 @@ kubectl apply -f kubernetes/frontend.yaml
 echo "Deploying ingress..."
 kubectl apply -f kubernetes/ingress.yaml
 
+# Deploy Prometheus for monitoring
+echo "Deploying Prometheus monitoring..."
+kubectl apply -f kubernetes/prometheus/prometheus-configmap.yaml
+kubectl apply -f kubernetes/prometheus/prometheus-deployment.yaml
+kubectl apply -f kubernetes/prometheus/prometheus-service.yaml
+
 echo "Waiting for pods to be ready..."
 kubectl wait --namespace weather-ops --for=condition=ready pod --selector=app=weather-ops --timeout=120s || true
 

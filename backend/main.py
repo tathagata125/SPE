@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 import pandas as pd
 import os
 import subprocess
@@ -9,6 +9,7 @@ import logging
 import json
 import time
 from datetime import datetime
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 # Configure logging
 log_file = os.path.join('logs', f'backend_{datetime.now().strftime("%Y-%m-%d")}.log')
@@ -45,6 +46,30 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(console_handler)
 
+# Prometheus metrics
+REQUEST_COUNT = Counter(
+    'http_requests_total', 
+    'Total HTTP Requests', 
+    ['method', 'endpoint', 'status']
+)
+REQUEST_LATENCY = Histogram(
+    'http_request_duration_seconds', 
+    'HTTP Request Latency', 
+    ['method', 'endpoint']
+)
+MODEL_PREDICTION_COUNT = Counter(
+    'model_predictions_total',
+    'Total number of model predictions'
+)
+MODEL_TRAINING_COUNT = Counter(
+    'model_training_total',
+    'Total number of model training runs'
+)
+DATA_UPLOAD_COUNT = Counter(
+    'data_upload_total',
+    'Total number of data uploads'
+)
+
 app = FastAPI()
 
 # Add CORS middleware
@@ -62,9 +87,24 @@ async def log_requests(request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
+    
+    # Log the request
     logger.info(
         f"Request: {request.method} {request.url.path} - Status: {response.status_code} - Time: {process_time:.3f}s"
     )
+    
+    # Record Prometheus metrics
+    REQUEST_COUNT.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        status=response.status_code
+    ).inc()
+    
+    REQUEST_LATENCY.labels(
+        method=request.method,
+        endpoint=request.url.path
+    ).observe(process_time)
+    
     return response
 
 RAW_DATA_PATH = "data/raw_weather.csv"
@@ -109,6 +149,12 @@ async def get_cleaned_data():
     except Exception as e:
         logger.error(f"Error loading cleaned data: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error loading cleaned data: {str(e)}")
+
+@app.get("/metrics")
+async def metrics():
+    """Endpoint for Prometheus metrics"""
+    logger.info("Metrics endpoint accessed")
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 def initialize_dvc():
     """Initialize DVC if it's not already initialized"""

@@ -272,6 +272,30 @@ EOF
                 '''
             }
         }
+        
+        stage('Deploy Prometheus Monitoring') {
+            steps {
+                echo 'Setting up Prometheus monitoring...'
+                sh '''
+                if [ "$FORCE_K8S_DEPLOY" = "1" ]; then
+                    echo "Deploying Prometheus to Kubernetes..."
+                    kubectl apply -f kubernetes/prometheus/prometheus-configmap.yaml
+                    kubectl apply -f kubernetes/prometheus/prometheus-deployment.yaml
+                    kubectl apply -f kubernetes/prometheus/prometheus-service.yaml
+                    echo "Prometheus deployed successfully."
+                    echo "You can access the Prometheus dashboard by port-forwarding:"
+                    echo "kubectl port-forward -n weather-ops svc/prometheus-service 9090:9090"
+                else
+                    echo "Simulating Prometheus deployment..."
+                    echo "In a real environment, this would deploy Prometheus for monitoring:"
+                    echo "- Backend API metrics (request count, latency)"
+                    echo "- Model training and prediction counts"
+                    echo "- System metrics (CPU, memory usage)"
+                    echo "- Kubernetes metrics"
+                fi
+                '''
+            }
+        }
     }
     
     post {
