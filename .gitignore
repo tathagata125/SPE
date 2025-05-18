@@ -64,3 +64,4 @@ Thumbs.db
 
 # Specific large files to exclude
 backend/metrics.json
+Project_Report.md
