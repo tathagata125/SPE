@@ -989,6 +989,52 @@ EOF
                 '''
             }
         }
+
+        stage('Setup Monitoring Access') {
+            steps {
+                echo 'Setting up persistent access to monitoring tools...'
+                sh '''
+                if [ "$FORCE_K8S_DEPLOY" = "1" ]; then
+                    # Kill any existing port-forwarding processes
+                    pkill -f "kubectl port-forward.*prometheus" || true
+                    pkill -f "kubectl port-forward.*grafana" || true
+                    
+                    # Create a simple script to maintain port forwarding
+                    cat > /tmp/monitoring_port_forward.sh << 'EOF'
+#!/bin/bash
+# Start port forwarding for monitoring tools
+nohup kubectl port-forward -n weather-ops svc/prometheus-service 9090:9090 > /tmp/prometheus-port-forward.log 2>&1 &
+echo "Prometheus port forwarding started on port 9090"
+nohup kubectl port-forward -n weather-ops svc/grafana-service 3000:3000 > /tmp/grafana-port-forward.log 2>&1 &
+echo "Grafana port forwarding started on port 3000"
+
+# Store the PIDs in a file so they can be terminated later if needed
+echo "Prometheus PID: $!" > /tmp/monitoring_port_forward_pids.txt
+echo "Grafana PID: $!" >> /tmp/monitoring_port_forward_pids.txt
+
+echo "Port forwarding setup complete!"
+echo "Access Prometheus at: http://localhost:9090"
+echo "Access Grafana at: http://localhost:3000 (default credentials: admin/admin)"
+EOF
+                    
+                    # Make the script executable
+                    chmod +x /tmp/monitoring_port_forward.sh
+                    
+                    # Execute the port forwarding script
+                    /tmp/monitoring_port_forward.sh
+                    
+                    echo "Monitoring tools are now accessible:"
+                    echo "- Prometheus: http://localhost:9090"
+                    echo "- Grafana: http://localhost:3000 (default credentials: admin/admin)"
+                else
+                    echo "Simulating monitoring access setup..."
+                    echo "In a real environment, this would set up persistent port forwarding for:"
+                    echo "- Prometheus: http://localhost:9090"
+                    echo "- Grafana: http://localhost:3000"
+                fi
+                '''
+            }
+        }
     }
     
     post {
