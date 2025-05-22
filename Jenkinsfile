@@ -1114,7 +1114,7 @@ EOF
     
     post {
         always {
-          node{
+          node('any') {
             sh 'docker logout'
             sh 'if [ -d "jenkins_venv" ]; then rm -rf jenkins_venv; fi'
           }
