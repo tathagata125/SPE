@@ -1,0 +1,140 @@
+### Monitoring Access Report
+
+#### Overview
+The **Setup Monitoring Access** stage in the Jenkins pipeline is responsible for enabling persistent access to monitoring tools such as Prometheus and Grafana. This stage ensures that developers and operators can easily access these tools to monitor the `Weather_ops` application, analyze metrics, and troubleshoot issues in real-time.
+
+---
+
+#### Key Actions in the Setup Monitoring Access Stage
+
+1. **Simulated Monitoring Access Setup**
+   - If the `FORCE_K8S_DEPLOY` parameter is set to `false`, the pipeline simulates the setup of monitoring access by logging the steps that would be performed in a real deployment.
+   - Simulated steps include:
+     - Setting up port forwarding for Prometheus and Grafana.
+     - Providing URLs for accessing the monitoring tools.
+   - Commands executed:
+     ```bash
+     echo "Simulating monitoring access setup..."
+     echo "In a real environment, this would set up persistent port forwarding for:"
+     echo "- Prometheus: http://localhost:9090"
+     echo "- Grafana: http://localhost:3000"
+     ```
+
+2. **Actual Monitoring Access Setup**
+   - If the `FORCE_K8S_DEPLOY` parameter is set to `true`, the pipeline sets up persistent access to Prometheus and Grafana by creating a port-forwarding script and executing it.
+   - Commands executed:
+     ```bash
+     echo "Setting up persistent access to monitoring tools..."
+
+     # Kill any existing port-forwarding processes
+     pkill -f "kubectl port-forward.*prometheus" || true
+     pkill -f "kubectl port-forward.*grafana" || true
+
+     # Create a script to maintain port forwarding
+     cat > /tmp/monitoring_port_forward.sh << 'EOF'
+#!/bin/bash
+# Start port forwarding for monitoring tools
+nohup kubectl port-forward -n weather-ops svc/prometheus-service 9090:9090 > /tmp/prometheus-port-forward.log 2>&1 &
+echo "Prometheus port forwarding started on port 9090"
+nohup kubectl port-forward -n weather-ops svc/grafana-service 3000:3000 > /tmp/grafana-port-forward.log 2>&1 &
+echo "Grafana port forwarding started on port 3000"
+
+# Store the PIDs in a file so they can be terminated later if needed
+echo "Prometheus PID: $!" > /tmp/monitoring_port_forward_pids.txt
+echo "Grafana PID: $!" >> /tmp/monitoring_port_forward_pids.txt
+
+echo "Port forwarding setup complete!"
+echo "Access Prometheus at: http://localhost:9090"
+echo "Access Grafana at: http://localhost:3000 (default credentials: admin/admin)"
+EOF
+
+     # Make the script executable
+     chmod +x /tmp/monitoring_port_forward.sh
+
+     # Execute the port forwarding script
+     /tmp/monitoring_port_forward.sh
+
+     echo "Monitoring tools are now accessible:"
+     echo "- Prometheus: http://localhost:9090"
+     echo "- Grafana: http://localhost:3000 (default credentials: admin/admin)"
+     ```
+
+3. **Port Forwarding Script**
+   - The port-forwarding script ensures that Prometheus and Grafana are accessible on local ports (9090 and 3000, respectively).
+   - The script runs in the background and logs its output to `/tmp/prometheus-port-forward.log` and `/tmp/grafana-port-forward.log`.
+   - The process IDs (PIDs) of the port-forwarding commands are stored in `/tmp/monitoring_port_forward_pids.txt` for easy termination if needed.
+
+---
+
+#### Purpose of the Setup Monitoring Access Stage
+
+1. **Persistent Access**
+   - Ensures that Prometheus and Grafana are accessible at all times for monitoring and troubleshooting.
+
+2. **Ease of Use**
+   - Simplifies access to monitoring tools by setting up port forwarding and providing direct URLs.
+
+3. **Real-Time Monitoring**
+   - Enables developers and operators to monitor the application and infrastructure in real-time.
+
+---
+
+#### Observations
+
+1. **Automated Setup**
+   - The use of a port-forwarding script automates the process of setting up access to monitoring tools.
+
+2. **Persistent Access**
+   - The script ensures that Prometheus and Grafana remain accessible even if the pipeline completes or terminates.
+
+3. **Potential for Improvement**
+   - The stage could include additional validation steps to ensure that the port-forwarding commands are running successfully.
+
+---
+
+#### Recommendations
+
+1. **Validate Port Forwarding**
+   - Add steps to validate that the port-forwarding commands are running and that the monitoring tools are accessible.
+     ```bash
+     curl -I http://localhost:9090
+     curl -I http://localhost:3000
+     ```
+
+2. **Monitor Logs**
+   - Periodically check the port-forwarding logs to ensure that there are no errors.
+     ```bash
+     tail -f /tmp/prometheus-port-forward.log
+     tail -f /tmp/grafana-port-forward.log
+     ```
+
+3. **Enhance Logging**
+   - Add detailed logging to the port-forwarding script to provide better insights into its execution.
+
+4. **Automate Termination**
+   - Create a script to terminate the port-forwarding processes using the stored PIDs.
+     ```bash
+     if [ -f /tmp/monitoring_port_forward_pids.txt ]; then
+         while read -r pid; do
+             kill $pid || echo "Failed to terminate process with PID $pid"
+         done < /tmp/monitoring_port_forward_pids.txt
+     fi
+     ```
+
+---
+
+#### Benefits of the Setup Monitoring Access Stage
+
+1. **Improved Observability**
+   - Provides easy access to monitoring tools, enabling real-time analysis of application and infrastructure metrics.
+
+2. **Proactive Issue Detection**
+   - Facilitates early detection of performance bottlenecks and resource constraints.
+
+3. **Streamlined Workflow**
+   - Automates the setup process, reducing manual effort and the risk of errors.
+
+---
+
+#### Conclusion
+The Setup Monitoring Access stage is a critical component of the Jenkins pipeline, ensuring that Prometheus and Grafana are easily accessible for monitoring the `Weather_ops` application. By implementing the recommended enhancements, this stage can be further optimized for reliability, usability, and observability.

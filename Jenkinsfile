@@ -6,11 +6,11 @@ pipeline {
     }
     
     environment {
-        DOCKER_HUB_CREDS = credentials('dockerhub-login')
-        DOCKER_BACKEND_IMAGE = "girish445g/weather-ops-backend:${BUILD_NUMBER}"
-        DOCKER_FRONTEND_IMAGE = "girish445g/weather-ops-frontend:${BUILD_NUMBER}"
-        LATEST_BACKEND_IMAGE = "girish445g/weather-ops-backend:latest"
-        LATEST_FRONTEND_IMAGE = "girish445g/weather-ops-frontend:latest"
+        DOCKER_HUB_CREDS = credentials('DockerHubCred1')
+        DOCKER_BACKEND_IMAGE = "tathagata125/weather-ops-backend:${BUILD_NUMBER}"
+        DOCKER_FRONTEND_IMAGE = "tathagata125/weather-ops-frontend:${BUILD_NUMBER}"
+        LATEST_BACKEND_IMAGE = "tathagata125/weather-ops-backend:latest"
+        LATEST_FRONTEND_IMAGE = "tathagata125/weather-ops-frontend:latest"
         PYTHON_VERSION = "3.12"
         // Set FORCE_K8S_DEPLOY based on parameter
         FORCE_K8S_DEPLOY = "${params.FORCE_K8S_DEPLOY == true ? '1' : '0'}"
@@ -116,20 +116,20 @@ except Exception as e:
                 sh 'echo $DOCKER_HUB_CREDS_PSW | docker login -u $DOCKER_HUB_CREDS_USR --password-stdin'
                 
                 // Tag and push backend image with build number
-                sh 'docker tag weather_ops_backend:latest girish445g/weather-ops-backend:${BUILD_NUMBER}'
-                sh 'docker push girish445g/weather-ops-backend:${BUILD_NUMBER}'
+                sh 'docker tag weather_ops_backend:latest tathagata125/weather-ops-backend:${BUILD_NUMBER}'
+                sh 'docker push tathagata125/weather-ops-backend:${BUILD_NUMBER}'
                 
                 // Tag and push backend image as latest
-                sh 'docker tag weather_ops_backend:latest girish445g/weather-ops-backend:latest'
-                sh 'docker push girish445g/weather-ops-backend:latest'
+                sh 'docker tag weather_ops_backend:latest tathagata125/weather-ops-backend:latest'
+                sh 'docker push tathagata125/weather-ops-backend:latest'
                 
                 // Tag and push frontend image with build number
-                sh 'docker tag weather_ops_frontend:latest girish445g/weather-ops-frontend:${BUILD_NUMBER}'
-                sh 'docker push girish445g/weather-ops-frontend:${BUILD_NUMBER}'
+                sh 'docker tag weather_ops_frontend:latest tathagata125/weather-ops-frontend:${BUILD_NUMBER}'
+                sh 'docker push tathagata125/weather-ops-frontend:${BUILD_NUMBER}'
                 
                 // Tag and push frontend image as latest
-                sh 'docker tag weather_ops_frontend:latest girish445g/weather-ops-frontend:latest'
-                sh 'docker push girish445g/weather-ops-frontend:latest'
+                sh 'docker tag weather_ops_frontend:latest tathagata125/weather-ops-frontend:latest'
+                sh 'docker push tathagata125/weather-ops-frontend:latest'
             }
         }
         
@@ -1114,8 +1114,10 @@ EOF
     
     post {
         always {
+          node{
             sh 'docker logout'
             sh 'if [ -d "jenkins_venv" ]; then rm -rf jenkins_venv; fi'
+          }
         }
         success {
             echo 'Pipeline completed successfully!'

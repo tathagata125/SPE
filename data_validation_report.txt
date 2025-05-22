@@ -1,0 +1,111 @@
+### Data Validation Report
+
+#### Overview
+The **Data Validation** stage in the Jenkins pipeline is a critical step that ensures the integrity and correctness of the data files used in the project. This stage validates the presence, structure, and content of the data files (`raw_weather.csv` and `cleaned_weather.csv`) to prevent downstream errors during testing, training, or deployment.
+
+---
+
+#### Key Actions in the Data Validation Stage
+
+1. **Checking File Existence**
+   - The script verifies that the required data files (`raw_weather.csv` and `cleaned_weather.csv`) exist in the `data/` directory.
+   - If any file is missing, the script logs an error message and exits with a non-zero status, causing the pipeline to fail:
+     ```python
+     data_paths = ['data/raw_weather.csv', 'data/cleaned_weather.csv']
+     for path in data_paths:
+         if not os.path.exists(path):
+             print(f'Error: Data file {path} not found')
+             exit(1)
+     ```
+
+2. **Loading and Validating `cleaned_weather.csv`**
+   - The script attempts to load the `cleaned_weather.csv` file using the `pandas` library. If the file cannot be loaded (e.g., due to incorrect formatting), an exception is raised, and the pipeline exits with an error:
+     ```python
+     try:
+         df = pd.read_csv('data/cleaned_weather.csv')
+     except Exception as e:
+         print(f'Error during data validation: {str(e)}')
+         exit(1)
+     ```
+
+3. **Checking for Null Values**
+   - The script checks for null or missing values in critical columns (`tavg`, `tmin`, `tmax`, `prcp`, `wspd`) of the `cleaned_weather.csv` file. If any null values are found, a warning is logged:
+     ```python
+     critical_columns = ['tavg', 'tmin', 'tmax', 'prcp', 'wspd']
+     for col in critical_columns:
+         if col in df.columns and df[col].isnull().sum() > 0:
+             print(f'Warning: {df[col].isnull().sum()} null values found in {col}')
+     ```
+
+4. **Logging Success**
+   - If all checks pass, the script logs a success message indicating that the data validation was completed successfully:
+     ```python
+     print('Data validation completed successfully')
+     ```
+
+---
+
+#### Purpose of the Data Validation Stage
+
+1. **Preventing Pipeline Failures**
+   - Ensures that the required data files are present and correctly formatted before proceeding to subsequent stages.
+   - Prevents runtime errors during testing, training, or deployment caused by missing or invalid data.
+
+2. **Ensuring Data Integrity**
+   - Validates the structure and content of the data files to ensure they meet the expected standards.
+   - Identifies potential issues, such as missing values, that could affect the accuracy of predictions or model training.
+
+3. **Improving Debugging**
+   - Provides clear error messages and warnings to help developers quickly identify and resolve data-related issues.
+
+---
+
+#### Observations
+
+1. **Comprehensive Checks**
+   - The stage includes checks for file existence, data loading, and null values in critical columns, covering the most common data integrity issues.
+
+2. **Error Handling**
+   - The use of `try-except` blocks ensures that errors during data loading are gracefully handled, with meaningful error messages logged.
+
+3. **Warnings for Non-Critical Issues**
+   - Null values in critical columns are logged as warnings rather than errors, allowing the pipeline to proceed while highlighting potential issues.
+
+---
+
+#### Recommendations
+
+1. **Additional Validations**
+   - **Data Types**: Verify that the columns have the correct data types (e.g., `tavg`, `tmin`, `tmax`, `prcp`, `wspd` should be numeric).
+   - **Value Ranges**: Check that the values in critical columns fall within reasonable ranges (e.g., `tavg` should be between -50°C and 50°C).
+   - **Duplicate Rows**: Identify and log duplicate rows in the dataset.
+
+2. **Validation for `raw_weather.csv`**
+   - Extend the validation script to include checks for the `raw_weather.csv` file, ensuring its structure and content are also correct.
+
+3. **Automated Fixes**
+   - Implement automated fixes for common issues, such as filling missing values with default values or removing invalid rows.
+
+4. **Logging Enhancements**
+   - Use a structured logging framework to log validation results in a more readable and searchable format.
+
+5. **Unit Tests for Validation Script**
+   - Add unit tests for the validation script to ensure its correctness and reliability.
+
+---
+
+#### Benefits of the Data Validation Stage
+
+1. **Improved Data Quality**
+   - Ensures that only high-quality data is used in the pipeline, leading to more accurate predictions and reliable model training.
+
+2. **Reduced Debugging Time**
+   - Early detection of data issues reduces the time spent debugging errors in later stages of the pipeline.
+
+3. **Increased Pipeline Robustness**
+   - Prevents pipeline failures caused by missing or invalid data, improving the overall reliability of the CI/CD process.
+
+---
+
+#### Conclusion
+The Data Validation stage is a vital component of the Jenkins pipeline, ensuring the integrity and correctness of the data files used in the project. By implementing the recommended enhancements, this stage can be further improved to handle a wider range of data quality issues and provide even greater value to the pipeline.

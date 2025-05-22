@@ -1,0 +1,151 @@
+### Deploy Prometheus Monitoring Report
+
+#### Overview
+The **Deploy Prometheus Monitoring** stage in the Jenkins pipeline is responsible for setting up Prometheus in the Kubernetes cluster to monitor the `Weather_ops` application. Prometheus is configured to collect metrics from the backend service, Kubernetes nodes, and other system components. This stage ensures that the application is equipped with robust monitoring capabilities for performance analysis and troubleshooting.
+
+---
+
+#### Key Actions in the Deploy Prometheus Monitoring Stage
+
+1. **Simulated Deployment**
+   - If the `FORCE_K8S_DEPLOY` parameter is set to `false`, the pipeline simulates the deployment of Prometheus by logging the steps that would be performed in a real deployment.
+   - Simulated steps include:
+     - Deploying Prometheus to monitor backend API metrics, system metrics, and Kubernetes metrics.
+     - Configuring Prometheus to scrape metrics from the backend service and Kubernetes nodes.
+   - Commands executed:
+     ```bash
+     echo "Simulating Prometheus deployment..."
+     echo "In a real environment, this would deploy Prometheus for monitoring:"
+     echo "- Backend API metrics (request count, latency)"
+     echo "- Model training and prediction counts"
+     echo "- System metrics (CPU, memory usage)"
+     echo "- Kubernetes metrics"
+     ```
+
+2. **Actual Deployment**
+   - If the `FORCE_K8S_DEPLOY` parameter is set to `true`, the pipeline deploys Prometheus to the Kubernetes cluster using the `kubectl apply` command.
+   - Commands executed:
+     ```bash
+     echo "Deploying Prometheus to Kubernetes..."
+     kubectl apply -f kubernetes/prometheus/prometheus-configmap.yaml
+     kubectl apply -f kubernetes/prometheus/prometheus-deployment.yaml
+     kubectl apply -f kubernetes/prometheus/prometheus-service.yaml
+     ```
+
+3. **Prometheus Configuration**
+   - The `prometheus-configmap.yaml` file defines the Prometheus configuration, including scrape intervals and scrape targets.
+   - Example content of the Prometheus ConfigMap:
+     ```yaml
+     apiVersion: v1
+     kind: ConfigMap
+     metadata:
+       name: prometheus-config
+       namespace: weather-ops
+     data:
+       prometheus.yml: |
+         global:
+           scrape_interval: 15s
+           evaluation_interval: 15s
+         scrape_configs:
+           - job_name: 'weather-ops-backend'
+             kubernetes_sd_configs:
+               - role: endpoints
+                 namespaces:
+                   names:
+                     - weather-ops
+             relabel_configs:
+               - source_labels: [__meta_kubernetes_service_name]
+                 action: keep
+                 regex: backend
+               - source_labels: [__meta_kubernetes_pod_container_port_name]
+                 action: keep
+                 regex: .*
+               - source_labels: [__meta_kubernetes_endpoint_port_name]
+                 regex: .*
+                 action: keep
+             metrics_path: /metrics
+             scheme: http
+     ```
+
+4. **Service Configuration**
+   - The `prometheus-service.yaml` file defines the Prometheus service, exposing it via a NodePort for external access.
+   - Example content of the Prometheus Service:
+     ```yaml
+     apiVersion: v1
+     kind: Service
+     metadata:
+       name: prometheus-service
+       namespace: weather-ops
+     spec:
+       selector:
+         app: prometheus
+       ports:
+       - port: 9090
+         targetPort: 9090
+         nodePort: 30090
+       type: NodePort
+     ```
+
+---
+
+#### Purpose of the Deploy Prometheus Monitoring Stage
+
+1. **Application Monitoring**
+   - Collects metrics from the backend service, such as request count, latency, and error rates.
+
+2. **System Monitoring**
+   - Monitors system-level metrics, including CPU and memory usage, to ensure resource efficiency.
+
+3. **Kubernetes Monitoring**
+   - Tracks Kubernetes metrics, such as pod status and node health, to maintain cluster reliability.
+
+---
+
+#### Observations
+
+1. **Comprehensive Monitoring**
+   - The Prometheus configuration covers application, system, and Kubernetes metrics, providing a holistic view of the system's performance.
+
+2. **Flexible Deployment**
+   - The stage supports both simulated and actual deployments, making it suitable for testing and production environments.
+
+3. **Potential for Improvement**
+   - The stage could include additional validation steps to verify the success of the Prometheus deployment.
+
+---
+
+#### Recommendations
+
+1. **Validate Prometheus Deployment**
+   - Add steps to validate the Prometheus deployment by checking the status of the pods and services.
+     ```bash
+     kubectl get pods -n weather-ops
+     kubectl get services -n weather-ops
+     ```
+
+2. **Monitor Prometheus Logs**
+   - Use `kubectl logs` to monitor Prometheus logs and ensure that metrics are being scraped correctly.
+
+3. **Enhance Logging**
+   - Add detailed logging to provide better insights into the Prometheus deployment process.
+
+4. **Integrate with Grafana**
+   - Configure Grafana to use Prometheus as a data source for visualizing metrics.
+
+---
+
+#### Benefits of the Deploy Prometheus Monitoring Stage
+
+1. **Improved Observability**
+   - Provides detailed insights into the application's performance and resource usage.
+
+2. **Proactive Issue Detection**
+   - Enables early detection of performance bottlenecks and resource constraints.
+
+3. **Enhanced Reliability**
+   - Helps maintain system reliability by monitoring critical metrics and triggering alerts.
+
+---
+
+#### Conclusion
+The Deploy Prometheus Monitoring stage is a critical component of the Jenkins pipeline, ensuring that the `Weather_ops` application is equipped with robust monitoring capabilities. By implementing the recommended enhancements, this stage can be further optimized for reliability, performance, and observability.

@@ -1,0 +1,144 @@
+### Deploy Grafana Report
+
+#### Overview
+The **Deploy Grafana** stage in the Jenkins pipeline is responsible for setting up Grafana in the Kubernetes cluster to visualize metrics collected by Prometheus. Grafana provides dashboards and alerts for monitoring the `Weather_ops` application, enabling developers and operators to gain insights into system performance, application behavior, and resource usage.
+
+---
+
+#### Key Actions in the Deploy Grafana Stage
+
+1. **Simulated Deployment**
+   - If the `FORCE_K8S_DEPLOY` parameter is set to `false`, the pipeline simulates the deployment of Grafana by logging the steps that would be performed in a real deployment.
+   - Simulated steps include:
+     - Deploying Grafana with pre-configured Prometheus as a data source.
+     - Setting up dashboards for monitoring application metrics.
+   - Commands executed:
+     ```bash
+     echo "Simulating Grafana deployment..."
+     echo "In a real environment, this would deploy Grafana with:"
+     echo "- Prometheus datasource pre-configured"
+     echo "- Dashboards for Weather_ops application metrics"
+     echo "- Custom dashboards for model performance monitoring"
+     echo "- Alerts for critical performance issues"
+     ```
+
+2. **Actual Deployment**
+   - If the `FORCE_K8S_DEPLOY` parameter is set to `true`, the pipeline deploys Grafana to the Kubernetes cluster using the `kubectl apply` command.
+   - Commands executed:
+     ```bash
+     echo "Deploying Grafana to Kubernetes..."
+     kubectl apply -f kubernetes/grafana/grafana-configmap.yaml
+     kubectl apply -f kubernetes/grafana/grafana-deployment.yaml
+     kubectl apply -f kubernetes/grafana/grafana-service.yaml
+     ```
+
+3. **Grafana Configuration**
+   - The `grafana-configmap.yaml` file defines the Grafana configuration, including the Prometheus data source.
+   - Example content of the ConfigMap:
+     ```yaml
+     apiVersion: v1
+     kind: ConfigMap
+     metadata:
+       name: grafana-datasources
+       namespace: weather-ops
+     data:
+       prometheus.yaml: |-
+         apiVersion: 1
+         datasources:
+         - name: Prometheus
+           type: prometheus
+           url: http://prometheus-service:9090
+           access: proxy
+           isDefault: true
+     ```
+
+4. **Service Configuration**
+   - The `grafana-service.yaml` file defines the Grafana service, exposing it via a NodePort for external access.
+   - Example content of the Grafana Service:
+     ```yaml
+     apiVersion: v1
+     kind: Service
+     metadata:
+       name: grafana-service
+       namespace: weather-ops
+     spec:
+       selector:
+         app: grafana
+       ports:
+       - port: 3000
+         targetPort: 3000
+         nodePort: 30080
+         protocol: TCP
+       type: NodePort
+     ```
+
+5. **Dashboard Configuration**
+   - Custom dashboards for the `Weather_ops` application are created and configured in Grafana. These dashboards include visualizations for:
+     - HTTP request rates and latencies.
+     - Error rates (e.g., 5xx errors).
+     - Model predictions and training counts.
+     - Resource usage (CPU, memory).
+
+---
+
+#### Purpose of the Deploy Grafana Stage
+
+1. **Visualization of Metrics**
+   - Provides a user-friendly interface for visualizing metrics collected by Prometheus.
+
+2. **Performance Monitoring**
+   - Enables real-time monitoring of application performance and resource usage.
+
+3. **Alerting**
+   - Configures alerts for critical performance issues, such as high error rates or resource exhaustion.
+
+---
+
+#### Observations
+
+1. **Comprehensive Monitoring**
+   - The Grafana dashboards cover a wide range of metrics, providing a holistic view of the system's performance.
+
+2. **Flexible Deployment**
+   - The stage supports both simulated and actual deployments, making it suitable for testing and production environments.
+
+3. **Potential for Improvement**
+   - The stage could include additional validation steps to verify the success of the Grafana deployment.
+
+---
+
+#### Recommendations
+
+1. **Validate Grafana Deployment**
+   - Add steps to validate the Grafana deployment by checking the status of the pods and services.
+     ```bash
+     kubectl get pods -n weather-ops
+     kubectl get services -n weather-ops
+     ```
+
+2. **Monitor Grafana Logs**
+   - Use `kubectl logs` to monitor Grafana logs and ensure that dashboards and data sources are configured correctly.
+
+3. **Enhance Logging**
+   - Add detailed logging to provide better insights into the Grafana deployment process.
+
+4. **Integrate with Alerts**
+   - Configure alerts in Grafana to notify operators of critical performance issues.
+
+---
+
+#### Benefits of the Deploy Grafana Stage
+
+1. **Improved Observability**
+   - Provides detailed insights into the application's performance and resource usage.
+
+2. **Proactive Issue Detection**
+   - Enables early detection of performance bottlenecks and resource constraints.
+
+3. **Enhanced Reliability**
+   - Helps maintain system reliability by monitoring critical metrics and triggering alerts.
+
+---
+
+#### Conclusion
+The Deploy Grafana stage is a critical component of the Jenkins pipeline, ensuring that the `Weather_ops` application is equipped with robust visualization and alerting capabilities. By implementing the recommended enhancements, this stage can be further optimized for reliability, performance, and observability.
